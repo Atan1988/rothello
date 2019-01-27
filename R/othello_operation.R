@@ -10,7 +10,8 @@ generate_othello_base <- function() {
     row = seq(1, 8, 1)
   ) %>% tidyr::gather(col, val, -row) %>%
   dplyr::mutate(
-    col = gsub('V', "", col) %>% as.numeric()
+    col = gsub('V', "", col) %>% as.numeric(),
+    id = seq(1, 64, 1)
   )
 }
 
@@ -168,8 +169,33 @@ play_randomly <- function(df, color) {
       move_to_make <- legal_move[sample(1:nrow(legal_move), 1), ]
       df <<- make_legal_move(df, move_to_make, color)
       color <<- -1 * color
-      return(df %>% tidyr::spread(col, val))
+      return(df)
    }
 }
 
+#' @title play randomly function1
+#' @name play_randomly1
+#' @param df board
+#' @param color color of the piece on turn
+#' @export
+play_randomly1 <- function(df, color) {
+  play_func <- function() {
+    legal_move_df <- chk_0_sp1(df, search_color = color * -1);
+    if (nrow(legal_move_df) > 1) {
+      move_to_gos <- legal_move_df %>% dplyr::select(id, row, col) %>% dplyr::distinct()
+      next_move <- move_to_gos[sample(1:nrow(move_to_gos), 1), ]
+      df <<- mk_a_move(df, legal_move_df, row = next_move$row, col = next_move$col, color = color)
+    }
+    color <<- color * -1
+    return(df)
+  }
+}
 
+#' @title get game state
+#' @name get_game_state
+#' @param df board
+#' @export
+get_game_state <- function(df) {
+  df %>% dplyr::arrange(id) %>% dplyr::pull(val) %>%
+    paste(collapse = "")
+}

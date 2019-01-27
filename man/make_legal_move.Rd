@@ -4,12 +4,14 @@
 \alias{make_legal_move}
 \title{make legal moves}
 \usage{
-make_legal_move(df, row, col, color)
+make_legal_move(df, legal_move_df, color)
 }
 \arguments{
 \item{df}{board}
 
 \item{legal_move_df}{legal move data frame}
+
+\item{color}{of the legal move}
 }
 \description{
 make legal moves

@@ -18,4 +18,5 @@ Imports:
     leaflet,
     leaflet.extras,
     fuzzyjoin,
-    tidyr
+    tidyr,
+    BoardGames
