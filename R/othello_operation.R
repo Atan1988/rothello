@@ -180,13 +180,14 @@ play_randomly <- function(df, color) {
 #' @export
 play_randomly1 <- function(df, color) {
   play_func <- function() {
-    legal_move_df <- chk_0_sp1(df, search_color = color * -1);
-    if (nrow(legal_move_df) > 1) {
-      move_to_gos <- legal_move_df %>% dplyr::select(id, row, col) %>% dplyr::distinct()
-      next_move <- move_to_gos[sample(1:nrow(move_to_gos), 1), ]
-      df <<- mk_a_move(df, legal_move_df, row = next_move$row, col = next_move$col, color = color)
-    }
-    color <<- color * -1
+        legal_move_df <- chk_0_sp1(df, search_color = color * -1);
+        if (nrow(legal_move_df) > 1) {
+          move_to_gos <- legal_move_df[c('id', 'row', 'col')] %>% unique()
+          next_move <- move_to_gos[sample(1:nrow(move_to_gos), 1), ]
+          df <<- mk_a_move(df, legal_move_df, row = next_move$row, col = next_move$col, color = color)
+        }
+        color <<- color * -1
+
     return(df)
   }
 }
