@@ -4,7 +4,10 @@
 \alias{generate_othello_base}
 \title{generate the default board}
 \usage{
-generate_othello_base()
+generate_othello_base(sz)
+}
+\arguments{
+\item{sz}{size of the board}
 }
 \description{
 generate the default board

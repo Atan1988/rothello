@@ -35,3 +35,5 @@ hist(sim_res)
 mean(sim_res)
 summary(sim_res)
 
+game <- ini_othello(8)
+game %>% mk_move(.$moves[1])

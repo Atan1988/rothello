@@ -1,17 +1,23 @@
 #' @title generate the default board
 #' @name generate_othello_base
+#' @param sz size of the board
 #' @export
-generate_othello_base <- function() {
-   matrix(
-     c(rep(0, 27), 1, -1, rep(0,6), -1, 1, rep(0, 27)),
-     ncol = 8
-   ) %>% tibble::as_tibble() %>%
+generate_othello_base <- function(sz) {
+
+  val <-  matrix(
+    rep(0, sz^2),
+    ncol = sz
+  )
+  val[sz/2, sz/ 2] <- 1; val[sz/2 + 1, sz/2 + 1] <- 1
+  val[sz/2, sz/2 + 1] <- -1; val[sz/2 + 1, sz/2] <- -1
+
+   val %>% tibble::as_tibble() %>%
   dplyr::mutate(
-    row = seq(1, 8, 1)
+    row = seq(1, sz, 1)
   ) %>% tidyr::gather(col, val, -row) %>%
   dplyr::mutate(
     col = gsub('V', "", col) %>% as.numeric(),
-    id = seq(1, 64, 1)
+    id = seq(1, sz^2, 1)
   )
 }
 

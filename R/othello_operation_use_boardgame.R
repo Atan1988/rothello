@@ -15,8 +15,6 @@ generate_othello_base_M <- function() {
 #' @export
 chk_0_sp1 <- function(df, search_color) {
 
-  #microbenchmark({
-
       tmp_df <- around_df
 
       tmp_df$val <- with(tmp_df, df$val[(col - 1) * 8 + row])
@@ -74,17 +72,16 @@ chk_0_sp1 <- function(df, search_color) {
 #' @name mk_a_move
 #' @param df board map
 #' @param legal_move_df legal move space
-#' @param row row of the legal move
-#' @param col col of the legal move
+#' @param id id of the legal move
 #' @param color color of the legal move
 #' @export
-mk_a_move <- function(df, legal_move_df, row, col, color) {
+mk_a_move <- function(df, legal_move_df, id, color) {
 
   #microbenchmark({
-      df1 <- df %>% .[.$row == row & .$col == col, ]
+      df1 <- df %>% .[.$id == id, ]
       df1$val <- color
 
-      df2 <- legal_move_df[legal_move_df$row == row & legal_move_df$col == col, ]
+      df2 <- legal_move_df[legal_move_df$id == id, ]
       df2$s_val <- df2$s_val * - 1
       df2$row <- df2$s_row
       df2$col <- df2$s_col

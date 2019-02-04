@@ -4,16 +4,14 @@
 \alias{mk_a_move}
 \title{make legal move}
 \usage{
-mk_a_move(df, legal_move_df, row, col, color)
+mk_a_move(df, legal_move_df, id, color)
 }
 \arguments{
 \item{df}{board map}
 
 \item{legal_move_df}{legal move space}
 
-\item{row}{row of the legal move}
-
-\item{col}{col of the legal move}
+\item{id}{id of the legal move}
 
 \item{color}{color of the legal move}
 }
