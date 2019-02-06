@@ -39,16 +39,16 @@ mk_move <- function(s, move) {
   )
 }
 
-#' #' @title get result of game
-#' #' @name get_res
-#' #' @param s game state
-#' #' @param player player just moved
-#' #' @export
-#' get_res <- function(s, player) {
-#'   game_sum <- s$df$val %>% sum()
-#'   res <- ifelse(sign(game_sum) == sign(player), 1, 0)
-#'   return(res)
-#' }
+#' @title get result of game
+#' @name get_results
+#' @param s game state
+#' @param player player just moved
+#' @export
+get_results <- function(s, player) {
+  game_sum <- sum(s$df$val)
+  res <- ifelse(sign(game_sum) == sign(player), 1, 0)
+  return(res)
+}
 
 #' @title summary method for othello game state
 #' @name summary.othello_state
