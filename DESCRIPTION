@@ -20,4 +20,6 @@ Imports:
     fuzzyjoin,
     tidyr,
     BoardGames,
-    methods
+    methods,
+    RSQLite,
+    DBI
