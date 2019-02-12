@@ -7,6 +7,7 @@ ini_othello <- function(sz, val = NULL, player = 1) {
   game_board <- generate_othello_base_M(sz, val)
   #if (!is.null(game_board)) game_board$val <- val
   move_df <- get_othello_mv(game_board, search_player = player * -1 )
+  if (length(move_df[[1]]) == 0) pass <- pass + 1 else pass <- 0
 
   structure(
     list(
@@ -14,6 +15,7 @@ ini_othello <- function(sz, val = NULL, player = 1) {
       , moves = move_df[[1]]
       , flip_df = move_df[[2]]
       , player_to_move = player
+      , pass_ct = pass
     )
     , class = 'othello_state'
   )
@@ -122,11 +124,14 @@ search_neighbor <-  function(mat, search_player = -1) {
 #' @param move move to make
 #' @export
 mk_move <- function(s, move) {
-  flip <- s$flip_df[[which(s$moves == move)]]
-  player_color <- s$player_to_move
-
-  new_df <- s$df
-  new_df[c(move, flip)] <- player_color
+  if (length(s$moves) > 0 & !is.na(move)) {
+    flip <- s$flip_df[[which(s$moves == move)]]
+    player_color <- s$player_to_move
+    new_df <- s$df
+    new_df[c(move, flip)] <- player_color
+  } else {
+    new_df <- s$df
+  }
   new_player <- s$player_to_move * -1
   new_move_df <- get_othello_mv(new_df, search_player = new_player * -1 )
 

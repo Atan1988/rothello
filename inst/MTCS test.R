@@ -35,7 +35,20 @@ View(df1); View(df2)
 
 library(doParallel)
 
-n <-  10
+# Register cluster
+registerDoParallel(5)
+
+# Find out how many cores are being used
+getDoParWorkers()
+
+library(foreach)
+start <- Sys.time()
+games <- foreach(i = 1:100, .packages = 'rothello') %dopar% UCT_playgame(25, 100)
+print(Sys.time() - start)
+
+hist(games %>% purrr::map_dbl(~.[[2]]))
+
+n <-  100
 prog_bar <- dplyr::progress_estimated(n)
 res <- 1:n %>%
   purrr::map(function(x) {
@@ -49,6 +62,7 @@ hist(res %>% purrr::map_dbl(~.[[2]]))
 start <- Sys.time()
 game1 <- UCT_playgame(25, 100)
 print(Sys.time() - start)
+game1
 
 microbenchmark(
   vector_data <- gdata::unmatrix(mat.pad[ind + 1, ind    ],byrow=T),
@@ -71,4 +85,13 @@ val = c(-1, 0, 1, 1, -1, -1, 0, 0,
         -1, -1, rep(1, 4), -1, -1,
         rep(-1, 8))
 
-ini_othello(8, val = val, player = 1) -> rootstate
+val = c(rep(1, 3), -1, rep(1, 4),
+        1, 1, 0, -1, rep(1, 4),
+        1, rep(-1, 3), 1, 1, -1, -1,
+        rep(1, 8),
+        1, -1, 1, rep(-1, 3), 1, 1,
+        0, rep(-1, 3), 1, rep(-1, 3),
+        0, rep(-1, 7),
+        rep(-1, 6), 1, 1)
+
+ini_othello(8, val = val, player = -1) -> rootstate
