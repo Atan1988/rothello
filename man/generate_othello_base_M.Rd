@@ -4,7 +4,12 @@
 \alias{generate_othello_base_M}
 \title{generate the default board matrix}
 \usage{
-generate_othello_base_M()
+generate_othello_base_M(sz, val = NULL)
+}
+\arguments{
+\item{sz}{size of the board}
+
+\item{val}{value of the board}
 }
 \description{
 generate the default board matrix

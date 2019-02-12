@@ -1,21 +1,119 @@
 #' @title othello state class
 #' @name ini_othello
 #' @param sz size of the board
+#' @param val board values
 #' @export
-#' @exportClass
-ini_othello <- function(sz, player = 1) {
-  game_board <- generate_othello_base(sz)
-  move_df <- chk_0_sp1(game_board, search_color = player * -1)
+ini_othello <- function(sz, val = NULL, player = 1) {
+  game_board <- generate_othello_base_M(sz, val)
+  #if (!is.null(game_board)) game_board$val <- val
+  move_df <- get_othello_mv(game_board, search_player = player * -1 )
 
   structure(
     list(
       df = game_board
-      , moves = move_df$id %>% unique()
-      , flip_df = move_df
+      , moves = move_df[[1]]
+      , flip_df = move_df[[2]]
       , player_to_move = player
     )
     , class = 'othello_state'
   )
+}
+
+print.othello_state <- function(...) {
+  print(...)
+}
+
+#' @title  othello get moves using matrix
+#' @name get_othello_mv
+#' @param df board state
+#' @param search_player opponents color
+#' @export
+get_othello_mv <- function(df, search_player = -1){
+  sz <- nrow(df)
+  mvs_list <- search_neighbor(df, search_player = search_player)
+
+  mvs <- mvs_list$mvs
+  if (length(mvs) == 0) return(list(NULL, NULL))
+  dir_mat <- mvs_list$dir_mat
+
+chk_valid <- function(valid_dir, mv_row, mv_col) {
+    dir <- dir_list[[valid_dir]]
+    dir_rows <- mv_row + seq(1, 8, 1) * dir[1]
+    dir_cols <- mv_col + seq(1, 8, 1) * dir[2]
+    dir_flt <- which(dir_rows >= 1 & dir_rows <= 8 & dir_cols >= 1 & dir_cols <= 8)
+    dir_rows <- dir_rows[dir_flt]
+    dir_cols <- dir_cols[dir_flt]
+
+    dir_idx <- ((dir_cols - 1) * sz + dir_rows) #%>% .[.<= sz^2]
+    dir_val <- df[dir_idx]#%>% .[!is.na(.)]
+    oppo_loc <- which(dir_val == (search_player * -1) )[1]
+    if (is.na(oppo_loc) | oppo_loc <= 1) return(list(res = F, filp = NULL))
+    res <- sum(dir_val[1:(oppo_loc - 1)]) == ((oppo_loc - 1) * (search_player))
+    if (res) {
+       return(
+        list(
+          res = T,
+          flip = dir_idx[1:(oppo_loc - 1)]
+        )
+       )
+    }
+    return(list(res = F, flip = NULL))
+}
+
+valid_mv_chk <- function(mv) {
+  mv_col <- (mv - 0.01) %/% sz + 1
+  mv_row <- mv - (mv_col - 1) * sz
+  valid_dirs <- as.vector(which(dir_mat[mv, ] == 1))
+  valid_res <- lapply(valid_dirs, chk_valid, mv_row = mv_row, mv_col = mv_col)
+
+  res <- sum(sapply(valid_res, function(x) x$res)) > 0
+  flip <- unlist(lapply(valid_res, function(x) x$flip))
+  return(list(res = res, flip = flip))
+}
+
+ valid_mvs_chk <- lapply(mvs, valid_mv_chk)
+ valid_idx <- sapply(valid_mvs_chk, function(x) x$res)
+
+ ok_mvs <- mvs[valid_idx]
+ mv_flips <- lapply(valid_mvs_chk[valid_idx ], function(x) x$flip)
+ return(list(ok_mvs, mv_flips))
+}
+
+#' @title  search moves using matrix
+#' @name search_neighbor
+#' @param mat board matrix
+#' @param search_player opponents color
+#' @export
+search_neighbor <-  function(mat, search_player = -1) {
+#microbenchmark({
+  n <-  nrow(mat)
+  ncol  <- ncol(mat)
+  val <- as.vector(mat)
+  val <- ifelse(val == search_player, 1, 0)
+  mat1 <- matrix(val, nrow = n, ncol = ncol)
+
+  mat.pad <-  rbind(0, cbind(0, mat1, 0), 0)
+  ind <- 2:(n + 1) # row/column indices of the "middle"
+
+  N <-  as.vector(mat.pad[ind - 1, ind    ] )
+  NE <-  as.vector(mat.pad[ind - 1, ind + 1] )
+  E <-  as.vector(mat.pad[ind    , ind + 1] )
+  SE <-  as.vector(mat.pad[ind + 1, ind + 1] )
+  S  <- as.vector(mat.pad[ind + 1, ind    ])
+  SW  <-  as.vector(mat.pad[ind + 1, ind - 1] )
+  W   <-  as.vector(mat.pad[ind    , ind - 1] )
+  NW  <-  as.vector(mat.pad[ind - 1, ind - 1] )
+#})
+
+
+  surr_sum <- N + NE + E + SE + S + SW + W + NW
+  mvs <- which(surr_sum > 0)
+  mvs_0 <- which(mat == 0)
+  mvs <- intersect(mvs, mvs_0 )
+  dir_mat <- cbind(N, NE, E, SE, S, SW, W, NW)
+  return(list(mvs = mvs,
+              dir_mat = dir_mat))
+  #return(surr_sum)
 }
 
 #' @title make a move to change state
@@ -24,15 +122,19 @@ ini_othello <- function(sz, player = 1) {
 #' @param move move to make
 #' @export
 mk_move <- function(s, move) {
-  new_df <- mk_a_move(s$df, s$flip_df, id = move, color = s$player_to_move)
+  flip <- s$flip_df[[which(s$moves == move)]]
+  player_color <- s$player_to_move
+
+  new_df <- s$df
+  new_df[c(move, flip)] <- player_color
   new_player <- s$player_to_move * -1
-  new_flip_df <- chk_0_sp1(new_df, search_color = new_player * -1)
+  new_move_df <- get_othello_mv(new_df, search_player = new_player * -1 )
 
   structure(
     list(
       df = new_df
-      , moves = new_flip_df$id %>% unique()
-      , flip_df = new_flip_df
+      , moves = new_move_df[[1]]
+      , flip_df = new_move_df[[2]]
       , player_to_move = new_player
     )
     , class = 'othello_state'
@@ -45,7 +147,7 @@ mk_move <- function(s, move) {
 #' @param player player just moved
 #' @export
 get_results <- function(s, player) {
-  game_sum <- sum(s$df$val)
+  game_sum <- sum(s$df)
   res <- ifelse(sign(game_sum) == sign(player), 1, 0)
   return(res)
 }
@@ -53,7 +155,7 @@ get_results <- function(s, player) {
 #' @title summary method for othello game state
 #' @name summary.othello_state
 #' @param x  anything to be summaried
-#' @exportClass
+#' @export
 summary.othello_state <- function(x) {
    return(x$df %>% dplyr::select(-id) %>% tidyr::spread(col, val))
 }

@@ -20,3 +20,55 @@ DBI::dbWriteTable(con, 'parent_child', parent_child)
 DBI::dbWriteTable(con, 'untried_moves', untried_moves)
 
 MT <- ini_MTCS()
+
+
+rootstate <- ini_othello(8)
+rootstate1 <- mk_move(rootstate, move = rootstate$moves[1])
+
+tree1 <- UCT(rootstate, itermax = 100)
+tree2 <- UCT(rootstate1, itermax = 100)
+
+tree1 %>% dplyr::tbl("MTCS_value") %>% dplyr::collect() -> df1
+tree2 %>% dplyr::tbl("MTCS_value") %>% dplyr::collect() -> df2
+
+View(df1); View(df2)
+
+library(doParallel)
+
+n <-  10
+prog_bar <- dplyr::progress_estimated(n)
+res <- 1:n %>%
+  purrr::map(function(x) {
+    res <- UCT_playgame(25, 100);
+    prog_bar$tick()$print()
+    return(res)
+  })
+
+hist(res %>% purrr::map_dbl(~.[[2]]))
+
+start <- Sys.time()
+game1 <- UCT_playgame(25, 100)
+print(Sys.time() - start)
+
+microbenchmark(
+  vector_data <- gdata::unmatrix(mat.pad[ind + 1, ind    ],byrow=T),
+  vector_data <- as.vector(mat.pad[ind + 1, ind    ] %>% t()),
+  vector_data <- as.vector(mat.pad[ind + 1, ind    ])
+)
+
+res <- UCT_playgame(25, 100)
+
+val = c(rep(0, 3), rep(-1, 5), 0, rep(1, 2), rep(-1, 5), rep(1, 3),
+        -1, 1, -1, 1, -1, rep(1, 7), -1, rep(1, 2), -1, rep(1, 2),
+        -1, 1, -1, rep(1, 3), -1, 1, -1, 1, 0, rep(1, 4), -1, 1, -1, 1, 1, rep(-1, 7))
+
+val = c(-1, 0, 1, 1, -1, -1, 0, 0,
+        rep(-1, 6), 1, 0,
+        1, -1, -1, rep(1, 4), -1,
+        1, 1, rep(c(-1, 1), 3),
+        1, 1, -1, -1, 1, 1, -1, -1,
+        rep(-1, 5), 1, -1, -1,
+        -1, -1, rep(1, 4), -1, -1,
+        rep(-1, 8))
+
+ini_othello(8, val = val, player = 1) -> rootstate

@@ -19,3 +19,14 @@ around_df <- purrr::cross_df(
     by = c('s_row' = 'row', 's_col' = 'col')
   ) %>%
   dplyr::arrange(id, x, y, dist)
+
+dir_list <- list(
+  c(-1, 0)
+  , c(-1, 1)
+  , c(0, 1)
+  , c(1, 1)
+  , c(1, 0)
+  , c(1, -1)
+  , c(0, -1)
+  , c(-1, -1)
+)

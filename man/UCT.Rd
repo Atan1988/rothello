@@ -4,7 +4,7 @@
 \alias{UCT}
 \title{UCT function}
 \usage{
-UCT(rootstate, itermax, verbose = False)
+UCT(rootstate, itermax, verbose = FALSE)
 }
 \arguments{
 \item{rootstate}{state of the root}

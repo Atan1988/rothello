@@ -3,9 +3,12 @@
 \name{init_node}
 \alias{init_node}
 \alias{ini_node}
+\alias{node_exist}
 \title{node class definition}
 \usage{
-ini_node(MT = NULL, move = NA, parent = NA, state = NULL)
+ini_node(MT, move = 0, parent = 0, parent_move = 0, state = NULL)
+
+node_exist(MTCS_value, Id, move)
 }
 \arguments{
 \item{MT}{the tree to initiate node into}
@@ -15,7 +18,15 @@ ini_node(MT = NULL, move = NA, parent = NA, state = NULL)
 \item{parent}{id of parent}
 
 \item{state}{game state}
+
+\item{MTCS_value}{MTCS_value table}
+
+\item{Id}{Id of the state}
+
+\item{move}{the move to make}
 }
 \description{
+node class definition
+
 node class definition
 }

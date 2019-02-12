@@ -4,10 +4,14 @@
 \alias{UCTSelectChild}
 \title{select child note}
 \usage{
-UCTSelectChild(node, UCTK = 1)
+UCTSelectChild(MTCS_value, node_Id, nodemove, UCTK = 1)
 }
 \arguments{
-\item{node}{a mtcs node}
+\item{MTCS_value}{MTCS_Value table}
+
+\item{node_Id}{node Id}
+
+\item{nodemove}{node move}
 
 \item{UCTK}{constant to control exploration vs exploitation}
 }

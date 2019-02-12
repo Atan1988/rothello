@@ -4,10 +4,12 @@
 \alias{ini_othello}
 \title{othello state class}
 \usage{
-ini_othello(sz, player = 1)
+ini_othello(sz, val = NULL, player = 1)
 }
 \arguments{
 \item{sz}{size of the board}
+
+\item{val}{board values}
 }
 \description{
 othello state class

@@ -22,4 +22,6 @@ Imports:
     BoardGames,
     methods,
     RSQLite,
-    DBI
+    DBI,
+    gdata,
+    Rcpp

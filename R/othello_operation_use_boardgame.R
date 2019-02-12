@@ -1,11 +1,22 @@
 #' @title generate the default board matrix
 #' @name generate_othello_base_M
+#' @param sz size of the board
+#' @param val value of the board
 #' @export
-generate_othello_base_M <- function() {
-  matrix(
-    c(rep(0, 27), 1, -1, rep(0,6), -1, 1, rep(0, 27)),
-    ncol = 8
-  )
+generate_othello_base_M <- function(sz, val = NULL) {
+  if (is.null(val)) {
+    mat <- matrix(
+      rep(0, sz^2),
+      ncol = sz
+    )
+    x <- c(sz/2, sz/2 + 1, sz/2 + 1, sz/2)
+    y <- c(sz/2, sz/2 + 1, sz/2, sz/2 + 1)
+    idx <- (y - 1) * sz + x
+    mat[idx] <- c(1, 1, -1, -1)
+  } else {
+    mat <- matrix(val, ncol = sz)
+  }
+  mat
 }
 
 #' @title check whether the space is 0 and eligible

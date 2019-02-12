@@ -1,28 +1,3 @@
-#' @title initiate a MTCS tree for search, using DBI object
-#' @name init_MTCS
-#' @export
-ini_MTCS <- function(){
-  MTCS_value <- tibble::tibble(
-    Id = NA, move = NA, parentId = NA, parentmove = NA, wins = NA, visits = NA
-  ) %>% .[0, ]
-
-  parent_child <- tibble::tibble(
-    Id = NA, move = NA, childId = NA, childmove = NA
-  ) %>% .[0, ]
-
-  untried_moves <- tibble::tibble(
-    Id = NA, move = NA, untried_move = NA
-  ) %>% .[0, ]
-
-  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
-
-  DBI::dbWriteTable(con, 'MTCS_value', MTCS_value)
-  DBI::dbWriteTable(con, 'parent_child', parent_child)
-  DBI::dbWriteTable(con, 'untried_moves', untried_moves)
-
-  return(con)
-}
-
 #' @title node class definition
 #' @name init_node
 #' @param MT the tree to initiate node into
@@ -30,23 +5,81 @@ ini_MTCS <- function(){
 #' @param parent id of parent
 #' @param state game state
 #' @export
-ini_node <- function(MT = NULL, move = NA, parent = NA, parent_move = NA, state = NULL) {
+ini_node <- function(MT, move = 0, parent = 0, parent_move = 0, state = NULL) {
   #structure(
-  node <-  tibble::tibble(
-      Id = state$df$val %>% ifelse(. == -1, 2, .) %>% tertodec()
-      , move = move # the move that got us to this node - NULL for the root node
-      , parentNode = parent # NULL for the root node
-      , parentmove = parent_move
-      , childNodes = list(c(NULL))
-      , wins = 0
-      , visits = 0
-      , untriedMoves = list(state$moves) # future child nodes
-      , playerJustMoved = state$player_to_move * -1# the only part of the state that the Node needs later
-    )
+  Id <- state$df %>% ifelse(. == -1, 2, .) %>% tertodec()
 
-   if (is.null(MT)) return(node) else return(dplyr::bind_rows(MT, node))
+  MTCS_value <- tibble::tibble(
+    Id = Id, move = move, parentId = parent, parentmove = parent_move, wins = 0, visits = 0
+  )
+
+  ###newly initated node shouldn't have child nodes
+  if (parent_move != 0 | parent != 0) {
+    parent_child <- tibble::tibble(
+      Id = parent, move = parent_move, childId = !!Id, childmove = !!move
+    )
+  } else {
+    parent_child <- tibble::tibble(
+      Id = parent, move = parent_move, childId = Id, childmove = move
+    ) %>% .[0, ]
+  }
+
+  if (length(state$moves) > 0) {
+    untried_moves <- tibble::tibble(
+      Id = Id, move = move, untried_move = state$moves
+    )
+  } else {
+    untried_moves <- tibble::tibble(
+      Id = Id, move = move, untried_move = NA
+    ) %>% .[0, ]
+  }
+
+
+  ##state DB creation
+  #state_df <- state$df %>% dplyr::mutate(node_Id = !!Id, move = move)
+
+  if (DBI::dbExistsTable(MT, 'MTCS_value')) {
+    node_exists <- (MT %>% dplyr::tbl('MTCS_value') %>%
+                      dplyr::filter(Id == !!Id,  move == !!move) %>%
+                      dplyr::tally() %>% dplyr::pull(n)) > 0
+  } else {
+    node_exists <- FALSE
+  }
+
+  if (!node_exists) {
+    DBI::dbWriteTable(MT, 'MTCS_value', MTCS_value, append = TRUE)
+    DBI::dbWriteTable(MT, 'parent_child', parent_child, append = TRUE)
+    DBI::dbWriteTable(MT, 'untried_moves', untried_moves, append = TRUE)
+    #DBI::dbWriteTable(MT, 'state_df', state_df, append = TRUE)
+  }
+
+  # node <-  tibble::tibble(
+  #     Id = state$df$val %>% ifelse(. == -1, 2, .) %>% tertodec()
+  #     , move = move # the move that got us to this node - NULL for the root node
+  #     , parentNode = parent # NULL for the root node
+  #     , parentmove = parent_move
+  #     , childNodes = list(c(NULL))
+  #     , wins = 0
+  #     , visits = 0
+  #     , untriedMoves = list(state$moves) # future child nodes
+  #     , playerJustMoved = state$player_to_move * -1# the only part of the state that the Node needs later
+  #   )
+  #
+  #  if (is.null(MT)) return(node) else return(dplyr::bind_rows(MT, node))
     #, class = "mtcs_node"
   #)
+}
+
+#' @title node class definition
+#' @name init_node
+#' @param MTCS_value MTCS_value table
+#' @param Id Id of the state
+#' @param move the move to make
+#' @export
+node_exist <- function(MTCS_value, Id, move) {
+  (MTCS_value %>%
+     dplyr::filter(Id == !!Id,  move == !!move) %>%
+     dplyr::tally() %>% dplyr::pull(n)) > 0
 }
 
 #' @title add child node
@@ -59,7 +92,7 @@ AddChild <- function(node, m, s) {
   n <-  ini_node(move = m, parent = node$Id, state = s)
   node$untriedMoves[[1]] <- node$untriedMoves[[1]] %>% .[!. %in% m]
   #node$childNodes <- append(node$childNodes, list(n))
-  node$childNodes <- list(c(node$childNodes[[1]], s$df$val %>% tertodec()))
+  node$childNodes <- list(c(node$childNodes[[1]], s$df %>% tertodec()))
   return(node)
 }
 
@@ -77,18 +110,23 @@ node_update <- function(node, res) {
 
 #' @title select child note
 #' @name UCTSelectChild
-#' @param MT mtcs tree
-#' @param node_df a mtcs node
+#' @param MTCS_value MTCS_Value table
+#' @param node_Id node Id
+#' @param nodemove node move
 #' @param UCTK constant to control exploration vs exploitation
 #' @export
-UCTSelectChild <- function(MT, node_df, UCTK = 1) {
-  MT %>% dplyr::inner_join(
-       node_df %>% dplyr::select(parentNode := Id), by = "parentNode"
+UCTSelectChild <- function(MTCS_value, node_Id, nodemove, UCTK = 1) {
+  node_visits <-  MTCS_value %>% dplyr::filter(
+    Id == !!node_Id, move == !!nodemove
+  ) %>% dplyr::pull(visits)
+
+  MTCS_value %>% dplyr::filter(
+       parentId == !!node_Id, parentmove == !!nodemove
     ) %>%
     dplyr::mutate(
-      sort_val = wins/visits + sqrt(2*log(node$visits)/visits)
+      sort_val = wins/visits + sqrt(2*log(node_visits)/visits)
     ) %>%
-    dplyr::arrange(-sort_val) %>% dplyr::select(Id, move) %>% .[1, ]
+    dplyr::arrange(-sort_val)  %>% dplyr::collect() %>% .[1, ]
 }
 
 #' @title UCT function
@@ -97,77 +135,149 @@ UCTSelectChild <- function(MT, node_df, UCTK = 1) {
 #' @param itermax max iterations
 #' @param verbose whether to print results
 #' @export
-UCT <- function(rootstate, itermax, verbose = False){
-  MT <- ini_node(state = rootstate)
-  rootnode_Id <- MT %>% dplyr::filter(is.na(parentNode)) %>% dplyr::pull(Id)
-  rootparent_Id <- NA
+UCT <- function(rootstate, itermax, verbose = FALSE){
+  #MT <- ini_node(state = rootstate)
+  options("scipen"=100)
+  MT <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  ini_node(MT, state = rootstate)
+  MTCS_value <- MT %>% dplyr::tbl('MTCS_value')
+  parent_child <- MT %>% dplyr::tbl('parent_child')
+  untried_moves <- MT %>% dplyr::tbl('untried_moves')
+  #state_df <- MT %>% dplyr::tbl("state_df")
+  rootnode_Id <- rootstate$df %>% ifelse(. == -1, 2, .) %>% tertodec()
+  rootmove <- 0
 
-  system.time(
-    {
-      itermax = 4
+  #system.time({
+      prog_bar <- dplyr::progress_estimated(itermax)
       for (i in 1:itermax) {
-        print(i)
-        node_df <- tibble::tibble(
-          Id = rootnode_Id,
-          move = NA,
-        )
+        #print(i)
+        node_Id <- rootnode_Id
+        nodemove <- rootmove
         state <- rootstate
+        node_playerJustMoved <- rootstate$player_to_move * -1
 
-        node <- MT %>% dplyr::inner_join(node_df, by = c("Id", "move"))
+        node_untriedMoves <- untried_moves %>%
+          dplyr::filter(Id == !!node_Id, move == !!nodemove) %>% dplyr::pull(untried_move)
+        node_childNodes <- parent_child %>%
+          dplyr::filter(Id == !!node_Id, move == !!nodemove)
         #Select
-        while (length(node$untriedMoves[[1]]) == 0 & length(node$childNodes[[1]]) > 0 ) {
-          print(node$Id)
-          node_df <- node_df %>% UCTSelectChild(MT, .)
-          node <- MT %>% dplyr::inner_join(node_df, by = c('Id', 'move'))
-          state <- mk_move(s = state, move = node$move)
+        while (length(node_untriedMoves) == 0 &
+               dplyr::pull(node_childNodes %>% dplyr::tally(), n) > 0 ) {
+          #print(node_Id); print(nodemove)
+          node_df <- UCTSelectChild(MTCS_value, node_Id, nodemove)
+          node_Id <- node_df$Id; nodemove <- node_df$move
+          node_playerJustMoved <- node_playerJustMoved * -1
+          state <- mk_move(s = state, move = nodemove)
+          node_untriedMoves <- untried_moves %>%
+            dplyr::filter(Id == !!node_Id, move == !!nodemove) %>% dplyr::pull(untried_move)
+          node_childNodes <- parent_child %>%
+            dplyr::filter(Id == !!node_Id, move == !!nodemove)
         }
+        #print(node_Id)
 
-        if (nrow(node_df) > 1) break;
+        #if (node_Id == 9223372036854775807) break;
         # Expand
-        if (length(node$untriedMoves[[1]]) > 0) { # if we can expand (i.e. state/node is non-terminal)
-          if (length(node$untriedMoves[[1]]) == 1) m <- node$untriedMoves[[1]] else {
-            m <- sample(node$untriedMoves[[1]], 1)
-
+        if (length(node_untriedMoves) > 0) { # if we can expand (i.e. state/node is non-terminal)
+          if (length(node_untriedMoves) == 1) m <- node_untriedMoves[1] else {
+            m <- sample(node_untriedMoves, 1)
           }
-          print(m)
+
           state <- mk_move(s = state, move = m)
-          node <- AddChild(node, m = m, s = state) # add child and descend tree
-          child_ID <- tertodec(s$df$val %>% ifelse(. == -1, 2, .))
-          if (!child_ID %in% MT$Id) MT <- ini_node(MT, move = m, parent = node$Id,
-                                                   parent_move = node$move, state = state)
-          MT <- MT %>% dplyr::anti_join(node_df, by = c("Id", "move"))
-          MT <- dplyr::bind_rows(MT, node)
+          #node <- AddChild(node, m = m, s = state) # add child and descend tree
+          child_ID <- tertodec(state$df %>% ifelse(. == -1, 2, .))
+          child_move <- m
+          if (!node_exist(MTCS_value, Id = child_ID, move = child_move)) {
+              ini_node(MT, move = child_move, parent = node_Id, parent_move = nodemove,
+                       state = state)
+          }
+          ##remove untried moves
+          query <- glue::glue_sql(paste0("DELETE FROM untried_moves WHERE Id = ", node_Id,
+                         " and move = ", nodemove, " and untried_move = ", m), .con = MT)
+          res <- DBI::dbSendQuery(MT, query)
+          res %>% DBI::dbClearResult()
         }
 
         # Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
         while (length(state$moves) > 0 ) {
-          state <- mk_move(s = state, move = sample(state$moves, 1))
+          if (length(state$moves) == 1) m <- state$moves[1] else m <- sample(state$moves, 1)
+          state <- mk_move(s = state, move = m)
         }
 
         # Backpropagate
-        while (nrow(node_df) == 1) {
-          node <- MT %>% dplyr::inner_join(node_df, by = c("Id", "move"))
-          result <- get_results(state, node$playerJustMoved)
-          node <- node_update(node, res = result)
-          MT <- dplyr::bind_rows(
-            MT %>% dplyr::anti_join(node_df, by = c("Id", "move")),
-            node
-          )
-          node_df <- MT %>% dplyr::select(Id, move) %>%
-            dplyr::inner_join(node %>%
-                                dplyr::select(Id := parentNode, move := parentmove),
-                              by = c("Id", "move"))
+        while ((!is.null(node_Id) & !is.null(nodemove)) & (node_Id != 0 | nodemove != 0)) {
+          result <- get_results(state, node_playerJustMoved)
+
+          ##update results to the node
+          query <- glue::glue_sql(
+            paste0("UPDATE MTCS_value SET wins = wins + ", result, ",
+                            visits = visits + 1 WHERE Id =", node_Id,
+                   " and move = ", nodemove), .con = MT)
+          res <- DBI::dbSendQuery(MT, query)
+          res %>% DBI::dbClearResult()
+
+          ### set node_Id to parent, and nodemove to parentmove
+          node_df <- MTCS_value %>%
+            dplyr::filter(Id == !!node_Id, move == !!nodemove) %>% dplyr::collect()
+          node_Id <- node_df$parentId[1]; nodemove <- node_df$parentmove[1]
+          node_playerJustMoved <- node_playerJustMoved * -1
+          if (is.null(node_Id)) node_Id <- 0
+          if (is.null(nodemove)) nodemove <- 0
         }
-
-        # while node != None: # backpropagate from the expanded node and work back to the root node
-        #   node.Update(state.GetResult(node.playerJustMoved)) # state is terminal. Update node with result from POV of node.playerJustMoved
-        # node = node.parentNode
+        prog_bar$tick()$print()
       }
-    }
-  )
+  #})
 
-  MT
+  #MTCS_value %>% dplyr::collect() %>% View()
+  m_sel <- MTCS_value %>%
+    dplyr::filter(parentId == rootnode_Id, parentmove == rootmove) %>%
+    dplyr::arrange(desc(visits)) %>% dplyr::collect() %>% .[1, ]
+  #return(MT)
+  return(m_sel$move[1])
+  #parent_child
+  #untried_moves
 }
+
+#' @title UCT play game function
+#' @name UCT_playgame
+#' @export
+UCT_playgame <- function(player1_depth = 100, player2_depth = 25) {
+  # def UCTPlayGame():
+  #   """ Play a sample game between two UCT players where each player gets a different number
+  #       of UCT iterations (= simulations = tree nodes).
+  #   """
+  # # state = OthelloState(4) # uncomment to play Othello on a square board of the given size
+  # # state = OXOState() # uncomment to play OXO
+  state <- ini_othello(8) # uncomment to play Nim with the given number of starting chips
+  consecutive_no_mv_track <- 0
+  moves <- NULL
+  while ( consecutive_no_mv_track < 2) { #length(state$moves) > 0
+    print(tibble::as_tibble(state$df))
+    cat('Current Player is ', state$player_to_move, '\n')
+
+    if (length(state$moves) > 0 ) {
+      if (state$player_to_move == -1) {
+        m = UCT(rootstate = state, itermax = player2_depth, verbose = F)
+      } else {
+        m = UCT(rootstate = state, itermax = player1_depth, verbose = F)
+      }
+      cat('\n Best Move: ', m, "\n")
+      moves <- c(moves, m)
+    }
+
+    state <- mk_move(s = state, move = m)
+    if (length(state$moves) > 0) consecutive_no_mv_track <-  0
+       else consecutive_no_mv_track <- consecutive_no_mv_track + 1
+  }
+  result1 <- get_results(state, 1)
+  result2 <- get_results(state, -1)
+
+  if (result1 == 1) cat('Player ', 1, ' wins!')
+  else if (result1 == 1) cat('Player ', 2, ' wins!')
+  else cat('Noby Wins')
+
+  return(list(moves = moves, result = sum(state$df) ))
+}
+
 
 
 #' @title base3 to base 10
@@ -180,13 +290,6 @@ tertodec <- function(val) {
 }
 
 
-toBoard <- function(state,some.board){
-  # some.board is just used for dimensions
-  id <- convertToTrinary(state,some.board)
-  id[which(id==2)] <- NA
-  board <- matrix(data=id,nrow=nrow(some.board),ncol=ncol(some.board))
-  return(board)
-}
 
 #' @title base10 to base 3
 #' @name dectoter
