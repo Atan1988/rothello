@@ -167,6 +167,27 @@ UCTSelectChild <- function(MTCS_value, node_Id, nodemove, UCTK = 1) {
     dplyr::arrange(-sort_val)  %>% dplyr::collect() %>% .[1, ]
 }
 
+#' @title select child note
+#' @name UCTSelectChild1
+#' @param MTCS_value MTCS_Value table
+#' @param node_Id node Id
+#' @param nodemove node move
+#' @param UCTK constant to control exploration vs exploitation
+#' @export
+UCTSelectChild1 <- function(MTCS_value, node_Id, nodemove, UCTK = 1) {
+  node_visits <-  MTCS_value %>% dplyr::filter(
+    Id == !!node_Id, move == !!nodemove
+  ) %>% dplyr::pull(visits)
+
+  MTCS_value %>% dplyr::filter(
+    parentId == !!node_Id, parentmove == !!nodemove
+  ) %>%
+    dplyr::mutate(
+      sort_val = ifelse(visits == 0, 1e7, wins/visits + sqrt(2*log(node_visits)/visits))
+    ) %>%
+    dplyr::arrange(desc(sort_val)) %>% .[1, ]
+}
+
 #' @title UCT function
 #' @name UCT
 #' @param rootstate state of the root
@@ -311,7 +332,7 @@ UCT1 <- function(rootstate, itermax, verbose = FALSE){
     while (length(node_untriedMoves) == 0 &
            dplyr::pull(node_childNodes %>% dplyr::tally(), n) > 0 ) {
       #print(node_Id); print(nodemove)
-      node_df <- UCTSelectChild(MT$MTCS_value, node_Id, nodemove)
+      node_df <- UCTSelectChild1(MT$MTCS_value, node_Id, nodemove)
       node_Id <- node_df$Id; nodemove <- node_df$move
       node_playerJustMoved <- node_playerJustMoved * -1
       state <- mk_move(s = state, move = nodemove)
@@ -401,9 +422,9 @@ UCT_playgame <- function(player1_depth = 100, player2_depth = 25) {
 
     if (length(state$moves) > 0 ) {
       if (state$player_to_move == -1) {
-        m = UCT1(rootstate = state, itermax = player2_depth, verbose = F)
+        m = UCT(rootstate = state, itermax = player2_depth, verbose = F)
       } else {
-        m = UCT1(rootstate = state, itermax = player1_depth, verbose = F)
+        m = UCT(rootstate = state, itermax = player1_depth, verbose = F)
       }
       cat('\n Best Move: ', m, "\n")
       moves <- c(moves, m)
@@ -418,6 +439,47 @@ UCT_playgame <- function(player1_depth = 100, player2_depth = 25) {
 
   if (result1 == 1) cat('Player ', 1, ' wins!')
   else if (result1 == 1) cat('Player ', 2, ' wins!')
+  else cat('Noby Wins')
+
+  return(list(moves = moves, result = sum(state$df) ))
+}
+
+#' @title UCT play game function
+#' @name UCT_playgame1
+#' @export
+UCT_playgame1 <- function(player1_depth = 100, player2_depth = 25) {
+  # def UCTPlayGame():
+  #   """ Play a sample game between two UCT players where each player gets a different number
+  #       of UCT iterations (= simulations = tree nodes).
+  #   """
+  # # state = OthelloState(4) # uncomment to play Othello on a square board of the given size
+  # # state = OXOState() # uncomment to play OXO
+  state <- ini_othello(8) # uncomment to play Nim with the given number of starting chips
+  consecutive_no_mv_track <- 0
+  moves <- NULL
+  while ( consecutive_no_mv_track < 2) { #length(state$moves) > 0
+    print(tibble::as_tibble(state$df))
+    cat('Current Player is ', state$player_to_move, '\n')
+
+    if (length(state$moves) > 0 ) {
+      if (state$player_to_move == -1) {
+        m = UCT1(rootstate = state, itermax = player2_depth, verbose = F)
+      } else {
+        m = UCT1(rootstate = state, itermax = player1_depth, verbose = F)
+      }
+      cat('\n Best Move: ', m, "\n")
+      moves <- c(moves, m)
+    }
+
+    state <- mk_move(s = state, move = m)
+    if (length(state$moves) > 0) consecutive_no_mv_track <-  0
+    else consecutive_no_mv_track <- consecutive_no_mv_track + 1
+  }
+  result1 <- get_results(state, 1)
+  result2 <- get_results(state, -1)
+
+  if (result1 == 1) cat('Player ', 1, ' wins!')
+  else if (result2 == 1) cat('Player ', 2, ' wins!')
   else cat('Noby Wins')
 
   return(list(moves = moves, result = sum(state$df) ))

@@ -35,18 +35,25 @@ View(df1); View(df2)
 
 library(doParallel)
 
-# Register cluster
-registerDoParallel(5)
-
 # Find out how many cores are being used
-getDoParWorkers()
+#getDoParWorkers()
 
 library(foreach)
 start <- Sys.time()
-games <- foreach(i = 1:100, .packages = 'rothello') %dopar% UCT_playgame(25, 100)
+# Register cluster
+registerDoParallel(5)
+games <- foreach(i = 1:100, .packages = 'rothello') %dopar% UCT_playgame1(50, 200)
 print(Sys.time() - start)
 
 hist(games %>% purrr::map_dbl(~.[[2]]))
+(games %>% purrr::map_dbl(~.[[2]]) %>% sort()) -> results
+cat("player 2 win ", ifelse(results < 0, 1, 0) %>% sum(), "times\n")
+
+start <- Sys.time()
+games2 <- foreach(i = 1:100, .packages = 'rothello') %dopar% UCT_playgame(50, 100)
+print(Sys.time() - start)
+
+hist(games2 %>% purrr::map_dbl(~.[[2]]))
 
 n <-  100
 prog_bar <- dplyr::progress_estimated(n)
@@ -71,6 +78,10 @@ microbenchmark(
 )
 
 res <- UCT_playgame(25, 100)
+
+start <- Sys.time()
+res <- UCT_playgame1(50, 1000)
+print(Sys.time() - start)
 
 val = c(rep(0, 3), rep(-1, 5), 0, rep(1, 2), rep(-1, 5), rep(1, 3),
         -1, 1, -1, 1, -1, rep(1, 7), -1, rep(1, 2), -1, rep(1, 2),
