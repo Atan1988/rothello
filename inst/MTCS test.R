@@ -33,7 +33,7 @@ tree2 %>% dplyr::tbl("MTCS_value") %>% dplyr::collect() -> df2
 
 View(df1); View(df2)
 
-library(doParallel)
+
 
 # Find out how many cores are being used
 #getDoParWorkers()
@@ -41,13 +41,42 @@ library(doParallel)
 library(foreach)
 start <- Sys.time()
 # Register cluster
-registerDoParallel(5)
-games <- foreach(i = 1:100, .packages = 'rothello') %dopar% UCT_playgame1(50, 200)
+library(doParallel)
+registerDoParallel(6)
+games <- foreach(i = 1:200, .packages = 'rothello') %dopar% UCT_playgame1(100, 100)
 print(Sys.time() - start)
+doParallel::stopImplicitCluster()
+
+game_df <- 1:length(games) %>% purrr::map_df(function(x) {
+  tibble::tibble(game_id = x,
+                 move_id = seq(1, length(games[[x]]$moves), 1),
+                 moves = games[[x]]$moves)
+})
+
+result_df <- 1:length(games) %>% purrr::map_df(function(x) {
+  tibble::tibble(game_id = x, result = games[[x]]$result)
+})
 
 hist(games %>% purrr::map_dbl(~.[[2]]))
 (games %>% purrr::map_dbl(~.[[2]]) %>% sort()) -> results
 cat("player 2 win ", ifelse(results < 0, 1, 0) %>% sum(), "times\n")
+
+con <- DBI::dbConnect(
+  drv = RMySQL::MySQL(),
+  dbname = "games",
+  host = "othelloai.ccz20a6chtws.us-east-2.rds.amazonaws.com",
+  port = 3306,
+  username = "atan",
+  password = "gyjltzw3813"
+)
+
+exist_iter <- con %>% DBI::dbListTables() %>% .[grepl('game_history', .)] %>% gsub('game_history', "", .) %>%
+  as.numeric() %>% max() %>% ifelse(is.infinite(.) | is.na(.), 0, .)
+sim_iter <- exist_iter + 1
+DBI::dbWriteTable(con, paste0('game_history', sim_iter), game_df, row.names = F)
+DBI::dbWriteTable(con, paste0('game_history', sim_iter), result_df, row.names = F)
+
+con %>% DBI::dbDisconnect()
 
 start <- Sys.time()
 games2 <- foreach(i = 1:100, .packages = 'rothello') %dopar% UCT_playgame(50, 100)
