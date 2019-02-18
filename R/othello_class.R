@@ -21,9 +21,6 @@ ini_othello <- function(sz, val = NULL, player = 1) {
   )
 }
 
-print.othello_state <- function(...) {
-  print(...)
-}
 
 #' @title  othello get moves using matrix
 #' @name get_othello_mv

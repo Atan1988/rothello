@@ -43,7 +43,7 @@ start <- Sys.time()
 # Register cluster
 library(doParallel)
 registerDoParallel(6)
-games <- foreach(i = 1:200, .packages = 'rothello') %dopar% UCT_playgame1(100, 100)
+games <- foreach(i = 1:100, .packages = 'rothello') %dopar% UCT_playgame1(100, 100)
 print(Sys.time() - start)
 doParallel::stopImplicitCluster()
 
@@ -74,7 +74,7 @@ exist_iter <- con %>% DBI::dbListTables() %>% .[grepl('game_history', .)] %>% gs
   as.numeric() %>% max() %>% ifelse(is.infinite(.) | is.na(.), 0, .)
 sim_iter <- exist_iter + 1
 DBI::dbWriteTable(con, paste0('game_history', sim_iter), game_df, row.names = F)
-DBI::dbWriteTable(con, paste0('game_history', sim_iter), result_df, row.names = F)
+DBI::dbWriteTable(con, paste0('game_result', sim_iter), result_df, row.names = F)
 
 con %>% DBI::dbDisconnect()
 
@@ -109,7 +109,7 @@ microbenchmark(
 res <- UCT_playgame(25, 100)
 
 start <- Sys.time()
-res <- UCT_playgame1(50, 1000)
+res <- UCT_playgame1(100, 100)
 print(Sys.time() - start)
 
 val = c(rep(0, 3), rep(-1, 5), 0, rep(1, 2), rep(-1, 5), rep(1, 3),

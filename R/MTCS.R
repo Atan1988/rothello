@@ -300,15 +300,16 @@ UCT <- function(rootstate, itermax, verbose = FALSE){
 
 #' @title UCT function
 #' @name UCT1
+#' @param MT monte carlo Tree
 #' @param rootstate state of the root
 #' @param itermax max iterations
 #' @param verbose whether to print results
 #' @export
-UCT1 <- function(rootstate, itermax, verbose = FALSE){
+UCT1 <- function(MT = NULL, rootstate, itermax, verbose = FALSE){
   #MT <- ini_node(state = rootstate)
   #
   options("scipen"=100)
-  MT <- ini_node1(state = rootstate)
+  if (is.null(MT)) MT <- ini_node1(state = rootstate)
   rootnode_Id <- rootstate$df %>% ifelse(. == -1, 2, .) %>% tertodec()
   rootmove <- 0
   #
@@ -397,7 +398,7 @@ UCT1 <- function(rootstate, itermax, verbose = FALSE){
     dplyr::filter(parentId == rootnode_Id, parentmove == rootmove) %>%
     dplyr::arrange(desc(visits)) %>% dplyr::collect() %>% .[1, ]
   #return(MT)
-  return(m_sel$move[1])
+  return(list(m_sel$move[1], MT))
   #parent_child
   #untried_moves
 }
@@ -461,11 +462,17 @@ UCT_playgame1 <- function(player1_depth = 100, player2_depth = 25) {
     print(tibble::as_tibble(state$df))
     cat('Current Player is ', state$player_to_move, '\n')
 
+    MT1 <- NULL
+    MT2 <- NULL
     if (length(state$moves) > 0 ) {
       if (state$player_to_move == -1) {
-        m = UCT1(rootstate = state, itermax = player2_depth, verbose = F)
+        UCT_res1 <- UCT1(MT = MT1, rootstate = state, itermax = player2_depth, verbose = F)
+        m  <- UCT_res1[[1]]
+        #MT1 <- UCT_res1[[2]]
       } else {
-        m = UCT1(rootstate = state, itermax = player1_depth, verbose = F)
+        UCT_res2 <- UCT1(MT = MT2, rootstate = state, itermax = player1_depth, verbose = F)
+        m  <- UCT_res2[[1]]
+        #MT2 <- UCT_res2[[2]]
       }
       cat('\n Best Move: ', m, "\n")
       moves <- c(moves, m)

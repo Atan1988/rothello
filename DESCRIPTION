@@ -24,4 +24,5 @@ Imports:
     RSQLite,
     DBI,
     gdata,
-    Rcpp
+    Rcpp,
+    keras
