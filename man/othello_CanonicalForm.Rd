@@ -4,10 +4,10 @@
 \alias{othello_CanonicalForm}
 \title{get canonical form of the othello class}
 \usage{
-othello_CanonicalForm(obj)
+othello_CanonicalForm(game)
 }
 \arguments{
-\item{obj}{othello object}
+\item{game}{othello object}
 }
 \description{
 get canonical form of the othello class

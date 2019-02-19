@@ -4,10 +4,10 @@
 \alias{othello_Symmetries}
 \title{get Symmetries of the othello class}
 \usage{
-othello_Symmetries(obj)
+othello_Symmetries(game)
 }
 \arguments{
-\item{obj}{othello object}
+\item{game}{othello object}
 }
 \description{
 get Symmetries of the othello class

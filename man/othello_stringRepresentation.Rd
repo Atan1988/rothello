@@ -4,10 +4,10 @@
 \alias{othello_stringRepresentation}
 \title{othello string representation}
 \usage{
-othello_stringRepresentation(obj)
+othello_stringRepresentation(df)
 }
 \arguments{
-\item{obj}{othello object}
+\item{df}{othello board}
 }
 \description{
 othello string representation

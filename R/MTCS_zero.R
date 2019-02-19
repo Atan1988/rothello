@@ -71,6 +71,12 @@ search_MTCSzero <- function(MTCSzero, canonicalBoard){
         # Returns:
         #     v: the negative of the value of the current canonicalBoard
 
+  s <-  othello_stringRepresentation(canonicalBoard)
+
+  if (!s %in% names(MTCSzero$Es)){
+    MTCSzero$Es[[s]] <- othello_getGameEnded(canonicalBoard, 1)
+  }
+  if (MTCSzero$Es[[s]] !=0) return(-MTCSzero$Es[[s]]) # terminal node
 
 }
 

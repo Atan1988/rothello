@@ -40,11 +40,31 @@ othello_Symmetries <- function(game) {
 
 #' @title othello string representation
 #' @name othello_stringRepresentation
-#' @param game othello object
+#' @param df othello board
 #' @export
-othello_stringRepresentation <- function(game){
-
+othello_stringRepresentation <- function(df){
+  ifelse(df == -1, 2, df) %>% paste(collapse = "")
 }
+
+#' @title othello check whether game has ended
+#' @name othello_getGameEnded
+#' @param df othello board
+#' @param player 1 or -1
+#' @export
+othello_getGameEnded <- function(df, player) {
+  # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
+  # player = 1
+
+  if (length(get_othello_mv(df, search_player = player)[[1]])) return(0)
+
+  if (length(get_othello_mv(df, search_player = player * -1)[[1]])) return(0)
+
+  # small value for draw
+  game_sum <- sum(df)
+  if (game_sum == 0) return(0.001)
+  if (sign(game_sum) == sign(player)) return(1) else return(-1)
+}
+
 
 #' @title  othello get moves using matrix
 #' @name get_othello_mv
