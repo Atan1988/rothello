@@ -5,20 +5,19 @@
 #' @export
 ini_othello <- function(sz, val = NULL, player = 1) {
   game_board <- generate_othello_base_M(sz, val)
-  #if (!is.null(game_board)) game_board$val <- val
-  move_df <- get_othello_mv(game_board, search_player = player * -1 )
+  #move_df <- get_othello_mv(game_board, search_player = player * -1 )
   #if (length(move_df[[1]]) == 0) pass <- pass + 1 else pass <- 0
 
   structure(
     list(
       df = game_board
-      , moves = move_df[[1]]
-      , flip_df = move_df[[2]]
+      #, moves = move_df[[1]]
+      #, flip_df = move_df[[2]]
       , player_to_move = player
-      , pass_ct = 0
-      , terminal = 0
+      #, pass_ct = 0
+      #, terminal = 0
     )
-    , class = 'othello_state'
+    , class = 'othello'
   )
 }
 
@@ -26,7 +25,7 @@ ini_othello <- function(sz, val = NULL, player = 1) {
 #' @name othello_CanonicalForm
 #' @param game othello object
 #' @export
-othello_CanonicalForm <- function(game) {
+CanonicalForm.othello <- function(game) {
   game$df * game$player_to_move
 }
 
@@ -39,32 +38,102 @@ othello_Symmetries <- function(game) {
 }
 
 #' @title othello string representation
-#' @name othello_stringRepresentation
-#' @param df othello board
+#' @name stringRepresentation.othello
+#' @param game othello object
 #' @export
-othello_stringRepresentation <- function(df){
-  ifelse(df == -1, 2, df) %>% paste(collapse = "")
+stringRepresentation.othello <- function(game){
+  ifelse(game$df == -1, 2, game$df) %>% paste(collapse = "")
 }
 
 #' @title othello check whether game has ended
-#' @name othello_getGameEnded
-#' @param df othello board
-#' @param player 1 or -1
+#' @name getGameEnded.othello
+#' @param game othello object
 #' @export
-othello_getGameEnded <- function(df, player) {
+getGameEnded.othello <- function(game) {
   # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
   # player = 1
 
-  if (length(get_othello_mv(df, search_player = player)[[1]])) return(0)
+  game_pass <- game
+  game_pass$player_to_move <- game$player_to_move * -1
 
-  if (length(get_othello_mv(df, search_player = player * -1)[[1]])) return(0)
+  if (length(getValidMove(game)) > 0) return(0)
+
+  if (length(getValidMove(game_pass)) > 0) return(0)
 
   # small value for draw
-  game_sum <- sum(df)
+  game_sum <- sum(game$df)
   if (game_sum == 0) return(0.001)
-  if (sign(game_sum) == sign(player)) return(1) else return(-1)
+  if (sign(game_sum) == sign(game$player_to_move)) return(1) else return(-1)
 }
 
+#' @title  othello get moves using matrix
+#' @name getValidMove.othello
+#' @param game othello object
+#' @export
+getValidMove.othello <- function(game){
+  get_othello_mv(game$df, search_player = game$player_to_move * -1)[[1]]
+}
+
+#' @title  othello make moves using matrix
+#' @name getNextState.othello
+#' @param game othello object
+#' @param move move to make
+#' @export
+getNextState.othello <- function(game, move){
+
+  if (move == 0) {
+    game$player_to_move <- game$player_to_move * -1
+    return(game)
+  }
+
+  sz <- nrow(game$df)
+  mvs_list <- search_neighbor(game$df, search_player = game$player_to_move * -1)
+
+  mvs <- mvs_list$mvs
+  dir_mat <- mvs_list$dir_mat
+  #if (length(mvs) == 0) return(list(NULL, NULL))
+  mv_df <- valid_mv_chk(mv = move, df = game$df, sz, dir_mat, search_player = game$player_to_move * -1)
+
+  game$df[c(move, mv_df$flip)] <- game$player_to_move
+  game$player_to_move <- game$player_to_move * -1
+  return(game)
+}
+
+chk_valid <- function(df, valid_dir, mv_row, mv_col, sz, search_player) {
+  dir <- dir_list[[valid_dir]]
+  dir_rows <- mv_row + seq(1, 8, 1) * dir[1]
+  dir_cols <- mv_col + seq(1, 8, 1) * dir[2]
+  dir_flt <- which(dir_rows >= 1 & dir_rows <= 8 & dir_cols >= 1 & dir_cols <= 8)
+  dir_rows <- dir_rows[dir_flt]
+  dir_cols <- dir_cols[dir_flt]
+
+  dir_idx <- ((dir_cols - 1) * sz + dir_rows) #%>% .[.<= sz^2]
+  dir_val <- df[dir_idx]#%>% .[!is.na(.)]
+  oppo_loc <- which(dir_val == (search_player * -1) )[1]
+  if (is.na(oppo_loc) | oppo_loc <= 1) return(list(res = F, filp = NULL))
+  res <- sum(dir_val[1:(oppo_loc - 1)]) == ((oppo_loc - 1) * (search_player))
+  if (res) {
+    return(
+      list(
+        res = T,
+        flip = dir_idx[1:(oppo_loc - 1)]
+      )
+    )
+  }
+  return(list(res = F, flip = NULL))
+}
+
+valid_mv_chk <- function(mv, df, sz, dir_mat, search_player) {
+  mv_col <- (mv - 0.01) %/% sz + 1
+  mv_row <- mv - (mv_col - 1) * sz
+  valid_dirs <- as.vector(which(dir_mat[mv, ] == 1))
+  valid_res <- lapply(valid_dirs, chk_valid, df= df, mv_row = mv_row,
+                      mv_col = mv_col, sz = sz, search_player)
+
+  res <- sum(sapply(valid_res, function(x) x$res)) > 0
+  flip <- unlist(lapply(valid_res, function(x) x$flip))
+  return(list(res = res, flip = flip))
+}
 
 #' @title  othello get moves using matrix
 #' @name get_othello_mv
@@ -79,42 +148,8 @@ get_othello_mv <- function(df, search_player = -1){
   if (length(mvs) == 0) return(list(NULL, NULL))
   dir_mat <- mvs_list$dir_mat
 
-chk_valid <- function(valid_dir, mv_row, mv_col) {
-    dir <- dir_list[[valid_dir]]
-    dir_rows <- mv_row + seq(1, 8, 1) * dir[1]
-    dir_cols <- mv_col + seq(1, 8, 1) * dir[2]
-    dir_flt <- which(dir_rows >= 1 & dir_rows <= 8 & dir_cols >= 1 & dir_cols <= 8)
-    dir_rows <- dir_rows[dir_flt]
-    dir_cols <- dir_cols[dir_flt]
-
-    dir_idx <- ((dir_cols - 1) * sz + dir_rows) #%>% .[.<= sz^2]
-    dir_val <- df[dir_idx]#%>% .[!is.na(.)]
-    oppo_loc <- which(dir_val == (search_player * -1) )[1]
-    if (is.na(oppo_loc) | oppo_loc <= 1) return(list(res = F, filp = NULL))
-    res <- sum(dir_val[1:(oppo_loc - 1)]) == ((oppo_loc - 1) * (search_player))
-    if (res) {
-       return(
-        list(
-          res = T,
-          flip = dir_idx[1:(oppo_loc - 1)]
-        )
-       )
-    }
-    return(list(res = F, flip = NULL))
-}
-
-valid_mv_chk <- function(mv) {
-  mv_col <- (mv - 0.01) %/% sz + 1
-  mv_row <- mv - (mv_col - 1) * sz
-  valid_dirs <- as.vector(which(dir_mat[mv, ] == 1))
-  valid_res <- lapply(valid_dirs, chk_valid, mv_row = mv_row, mv_col = mv_col)
-
-  res <- sum(sapply(valid_res, function(x) x$res)) > 0
-  flip <- unlist(lapply(valid_res, function(x) x$flip))
-  return(list(res = res, flip = flip))
-}
-
- valid_mvs_chk <- lapply(mvs, valid_mv_chk)
+ valid_mvs_chk <- lapply(mvs, valid_mv_chk, df = df, sz = sz, dir_mat = dir_mat,
+                         search_player = search_player)
  valid_idx <- sapply(valid_mvs_chk, function(x) x$res)
 
  ok_mvs <- mvs[valid_idx]
@@ -203,10 +238,3 @@ get_results <- function(s, player) {
   return(res)
 }
 
-#' @title summary method for othello game state
-#' @name summary.othello_state
-#' @param x  anything to be summaried
-#' @export
-summary.othello_state <- function(x) {
-   return(x$df %>% dplyr::select(-id) %>% tidyr::spread(col, val))
-}

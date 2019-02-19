@@ -2,9 +2,10 @@
 % Please edit documentation in R/othello_class.R
 \name{othello_CanonicalForm}
 \alias{othello_CanonicalForm}
+\alias{CanonicalForm.othello}
 \title{get canonical form of the othello class}
 \usage{
-othello_CanonicalForm(game)
+\method{CanonicalForm}{othello}(game)
 }
 \arguments{
 \item{game}{othello object}

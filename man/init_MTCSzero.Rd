@@ -4,7 +4,7 @@
 \alias{init_MTCSzero}
 \title{initiate MTCS zero}
 \usage{
-init_MTCSzero(game, nnet, args)
+init_MTCSzero(game, nnet, args = list(EPS = 0.00000001))
 }
 \arguments{
 \item{game}{game object, for example result of ini_othello}
