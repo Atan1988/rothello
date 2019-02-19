@@ -16,7 +16,7 @@ UCTNN <- function(MT = NULL, rootstate, NN, itermax, verbose = FALSE){
 #' @param nnet prediction neural network
 #' @param args arguments, numMCTSSims number of MCTS simulations
 #' @export
-init_MTCSzero  <- function(game, nnet, args) {
+init_MTCSzero  <- function(game, nnet, args = list(EPS = 1e-8)) {
   obj <- list(
    game = game,
    nnet = nnet,
@@ -78,5 +78,69 @@ search_MTCSzero <- function(MTCSzero, canonicalBoard){
   }
   if (MTCSzero$Es[[s]] !=0) return(-MTCSzero$Es[[s]]) # terminal node
 
+  if (!s %in% names(MTCSzero$Ps)){
+    # leaf node
+    MTCSzero$Ps[[s]] <- predict(nnet, canonicalBoard)
+    v <-  predict(nnet, canonicalBoard)
+    valids = othello_getValidMoves(canonicalBoard, 1)
+    MTCSzero$Ps[[s]] = MTCSzero$Ps[[s]] * valids      # masking invalid moves
+    sum_Ps_s = sum(MTCSzero$Ps[[s]])
+    if (sum_Ps_s > 0){
+      MTCSzero$Ps[[s]] = MTCSzero$Ps[[s]] / sum_Ps_s    # renormalize
+    } else {
+      # if all valid moves were masked make all valid moves equally probable
+
+      # NB! All valid moves may be masked if either your NNet architecture is insufficient or you've get overfitting or something else.
+      # If you have got dozens or hundreds of these messages you should pay attention to your NNet and/or training process.
+      print("All valid moves were masked, do workaround.")
+      MTCSzero$Ps[[s]] <-  MTCSzero$Ps[[s]] + valids
+      MTCSzero$Ps[[s]] <-  MTCSzero$Ps[[s]] / sum(MTCSzero$Ps[[s]])
+    }
+
+    MTCSzero$Vs[[s]] <-  valids
+    MTCSzero$Ns[[s]] <-  0
+    return(-v)
+  }
+
+  valids <- MTCSzero$Vs[[s]]
+  cur_best <- -Inf
+  best_act <-  -1
+
+  # pick the action with the highest upper confidence bound
+  for (a in 1:othello_getActionSize(MTCSzero$game)){
+    if (valids[a]) {
+      s_a <- paste0(s, "_", a)
+      if (s_a %in% names(MTCSzero$Qsa)) {
+        u <- MTCSzero$Qsa[[s_a]] +
+              MTCSzero$args$cpuct * MTCSzero$Ps[[s]][a] * sqrt(MTCSzero$Ns[[s]])/(1 + MTCSzero$Nsa[[s_a]])
+      } else {
+        u <- MTCSzero$args$cpuct * MTCSzero$Ps[[s]][a] * sqrt(MTCSzero$Ns[[s]] + MTCSzero$args$EPS)     # Q = 0 ?
+
+        if (u > cur_best) {
+          cur_best <-  u
+          best_act <-  a
+        }
+      }
+    }
+  }
+
+
+  a <- best_act
+  next_s <- mk_move(game, a)
+  #next_s, next_player = self.game.getNextState(canonicalBoard, 1, a)
+  #next_s = self.game.getCanonicalForm(next_s, next_player)
+
+  v <- search_MTCSzero(MTCSzero, next_s)
+
+  if (s_a %in% names(MTCSzero$Qsa)){
+    MTCSzero$Qsa[[s_a]] <- (MTCSzero$Nsa[[s_a]] * MTCSzero$Qsa[[s_a]] + v)/( MTCSzero$Qsa[[s_a]] +1)
+    MTCSzero$Nsa[[s_a]] <- MTCSzero$Nsa[[s_a]] + 1
+  } else{
+    MTCSzero$Qsa[[s_a]] <-  v
+    MTCSzero$Nsa[[s_a]] <-  1
+  }
+
+  MTCSzero$Ns[[s]] <- MTCSzero$Ns[[s]] + 1
+  return(-v)
 }
 
