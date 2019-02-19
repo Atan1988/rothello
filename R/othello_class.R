@@ -7,7 +7,7 @@ ini_othello <- function(sz, val = NULL, player = 1) {
   game_board <- generate_othello_base_M(sz, val)
   #if (!is.null(game_board)) game_board$val <- val
   move_df <- get_othello_mv(game_board, search_player = player * -1 )
-  if (length(move_df[[1]]) == 0) pass <- pass + 1 else pass <- 0
+  #if (length(move_df[[1]]) == 0) pass <- pass + 1 else pass <- 0
 
   structure(
     list(
@@ -15,12 +15,36 @@ ini_othello <- function(sz, val = NULL, player = 1) {
       , moves = move_df[[1]]
       , flip_df = move_df[[2]]
       , player_to_move = player
-      , pass_ct = pass
+      , pass_ct = 0
+      , terminal = 0
     )
     , class = 'othello_state'
   )
 }
 
+#' @title get canonical form of the othello class
+#' @name othello_CanonicalForm
+#' @param game othello object
+#' @export
+othello_CanonicalForm <- function(game) {
+  game$df * game$player_to_move
+}
+
+#' @title get Symmetries of the othello class
+#' @name othello_Symmetries
+#' @param game othello object
+#' @export
+othello_Symmetries <- function(game) {
+
+}
+
+#' @title othello string representation
+#' @name othello_stringRepresentation
+#' @param game othello object
+#' @export
+othello_stringRepresentation <- function(game){
+
+}
 
 #' @title  othello get moves using matrix
 #' @name get_othello_mv
@@ -126,11 +150,14 @@ mk_move <- function(s, move) {
     player_color <- s$player_to_move
     new_df <- s$df
     new_df[c(move, flip)] <- player_color
+    pass_ct <- 0
   } else {
     new_df <- s$df
+    pass_ct <- s$pass_ct + 1
   }
   new_player <- s$player_to_move * -1
   new_move_df <- get_othello_mv(new_df, search_player = new_player * -1 )
+  if (pass_ct >= 2 | length(s$df[s$df == 0])) terminal <-  1 else terminal <-  0
 
   structure(
     list(
@@ -138,6 +165,8 @@ mk_move <- function(s, move) {
       , moves = new_move_df[[1]]
       , flip_df = new_move_df[[2]]
       , player_to_move = new_player
+      , pass_ct = pass_ct
+      , terminal = terminal
     )
     , class = 'othello_state'
   )
