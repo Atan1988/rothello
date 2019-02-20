@@ -85,6 +85,14 @@ getActionSize.othello <- function(game){
   length(game$df)
 }
 
+#' @title  othello get board size
+#' @name getBoardSize.othello
+#' @param game othello object
+#' @export
+getBoardSize.othello <- function(game){
+  c(board_x = sqrt(length(game$df)), board_y =  sqrt(length(game$df)))
+}
+
 #' @title  othello make moves using matrix
 #' @name getNextState.othello
 #' @param game othello object
