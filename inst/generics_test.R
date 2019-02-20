@@ -6,6 +6,8 @@ getGameEnded(game1)
 
 getValidMove(game1)
 
+CanonicalForm(game1)
+
 mvs <- getValidMove(game1)
 
 next_state <- getNextState(game1, 21)

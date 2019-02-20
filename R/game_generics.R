@@ -7,3 +7,5 @@ getNextState <- function(x, move) UseMethod("getNextState")
 stringRepresentation <- function(x) UseMethod("stringRepresentation")
 
 getGameEnded <- function(x) UseMethod("getGameEnded")
+
+getActionSize <- function(x) UseMethod("getActionSize")

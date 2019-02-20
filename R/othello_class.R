@@ -22,11 +22,14 @@ ini_othello <- function(sz, val = NULL, player = 1) {
 }
 
 #' @title get canonical form of the othello class
-#' @name othello_CanonicalForm
+#' @name CanonicalForm.othello
 #' @param game othello object
 #' @export
 CanonicalForm.othello <- function(game) {
-  game$df * game$player_to_move
+  df <- game$df * game$player_to_move
+  game$df <- df
+  game$player_to_move <- 1
+  return(game)
 }
 
 #' @title get Symmetries of the othello class
@@ -72,6 +75,14 @@ getGameEnded.othello <- function(game) {
 #' @export
 getValidMove.othello <- function(game){
   get_othello_mv(game$df, search_player = game$player_to_move * -1)[[1]]
+}
+
+#' @title  othello get action size
+#' @name getActionSize.othello
+#' @param game othello object
+#' @export
+getActionSize.othello <- function(game){
+  length(game$df)
 }
 
 #' @title  othello make moves using matrix
