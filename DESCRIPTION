@@ -25,4 +25,5 @@ Imports:
     DBI,
     gdata,
     Rcpp,
-    keras
+    keras,
+    R6
