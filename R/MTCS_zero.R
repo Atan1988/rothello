@@ -70,7 +70,6 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
     #   v: the negative of the value of the current canonicalBoard
 
     s <- stringRepresentation(canonicalBoard)
-    s_a <- paste(s, a, sep = "_")
 
     if (!s %in% names(self$Es)) {
           self$Es[[s]] <- getGameEnded(canonicalBoard)
@@ -82,9 +81,11 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
 
     if (!s %in% names(self$Ps)) {
       # leaf node
-      c(self$Ps[[s]], v) %<-% self$nnet$predict(canonicalBoard)
-      valids <-  getValidMoves(canonicalBoard)
-      self$Ps[[s]] <-  self$Ps[[s]] * valids      # masking invalid moves
+      input_dat <- keras::array_reshape(canonicalBoard$df, dim = c(1, 8, 8, 1))
+      c(self$Ps[[s]], v) %<-% self$nnet$model$predict(input_dat)
+      mvs <-  getValidMove(canonicalBoard)
+      valids <- rep(0, getActionSize(canonicalBoard)); valids[mvs] <- 1
+      self$Ps[[s]] <-  as.vector(self$Ps[[s]]) * valids      # masking invalid moves
       sum_Ps_s <-  sum(self$Ps[[s]])
 
       if (sum_Ps_s > 0){
@@ -97,11 +98,10 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
         print("All valid moves were masked, do workaround.")
           self$Ps[[s]] <- self$Ps[[s]] + valids
           self$Ps[[s]] <-  self$Ps[[s]] / sum(self$Ps[[s]])
-
-          self$Vs[[s]] <- valids
-          self$Ns[[s]] <- 0
-          return(-v)
       }
+      self$Vs[[s]] <- valids
+      self$Ns[[s]] <- 0
+      return(-v)
     }
 
     valids <-  self$Vs[[s]]
@@ -110,7 +110,8 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
 
     # pick the action with the highest upper confidence bound
     for (a in 1:getActionSize(self$game)) {
-      if (valids[a]){
+      s_a <- paste(s, a, sep = "_")
+      if (valids[a] == 1){
         if (s_a %in% names(self$Qsa)){
           u <- self$Qsa[[s_a]] + self$args$cpuct * self$Ps[[s]][a] * sqrt(self$Ns[[s]]) / (1+self$Nsa[[s_a]])
         } else {
@@ -125,8 +126,7 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
     }
 
     a <-  best_act
-    c(next_s, next_player) = getNextState(canonicalBoards, a)
-    next_s <-  getCanonicalForm(next_s, next_player)
+    next_s <-  getNextState(canonicalBoard, a) %>% CanonicalForm()
 
     v <- self$search(next_s)
 

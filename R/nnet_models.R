@@ -16,13 +16,42 @@ nnet <- R6::R6Class("nnet", list(
      self$args <- args
 
 
-     main_input <- keras::layer_input(shape = c(self$board_x,  self$board_y),
+     main_input <- keras::layer_input(shape = c(self$board_x,  self$board_y, 1),
                                       dtype = 'float32', name = 'main_input')
 
      main_out <- main_input %>%
+       ##conv1
+       keras::layer_conv_2d(filters = args$num_channels,
+                            kernel_size = args$kernel_size, padding = 'same', use_bias = FALSE) %>%
+       keras::layer_batch_normalization(axis=3) %>%
+       keras::layer_activation(activation = 'relu') %>%
+       ##conv2
+       keras::layer_conv_2d(filters = args$num_channels,
+                            kernel_size = args$kernel_size, padding = 'same', use_bias = FALSE) %>%
+       keras::layer_batch_normalization(axis=3) %>%
+       keras::layer_activation(activation = 'relu') %>%
+       ##conv3
+       keras::layer_conv_2d(filters = args$num_channels,
+                            kernel_size = args$kernel_size, padding = 'valid', use_bias = FALSE) %>%
+       keras::layer_batch_normalization(axis=3) %>%
+       keras::layer_activation(activation = 'relu') %>%
+       ##conv4
+       keras::layer_conv_2d(filters = args$num_channels,
+                            kernel_size = args$kernel_size, padding = 'valid', use_bias = FALSE) %>%
+       keras::layer_batch_normalization(axis=3) %>%
+       keras::layer_activation(activation = 'relu') %>%
+       ##flatten layers
        keras::layer_flatten() %>%
-       keras::layer_dense(units = 64, activation = keras::activation_relu,
-                          name = 'main_out')
+       ##dense layer
+       keras::layer_dense(1024, use_bias = FALSE) %>%
+       keras::layer_batch_normalization(axis=1) %>%
+       keras::layer_activation(activation = 'relu') %>%
+       keras::layer_dropout(args$dropout) %>%
+       ###dense layer 2
+       keras::layer_dense(512, use_bias = FALSE) %>%
+       keras::layer_batch_normalization(axis=1) %>%
+       keras::layer_activation(activation = 'relu') %>%
+       keras::layer_dropout(args$dropout)
 
      probs_out <- main_out %>%
        #output layer
