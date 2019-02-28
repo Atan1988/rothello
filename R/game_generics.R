@@ -11,3 +11,5 @@ getGameEnded <- function(x) UseMethod("getGameEnded")
 getActionSize <- function(x) UseMethod("getActionSize")
 
 getBoardSize <- function(x) UseMethod("getBoardSize")
+
+getSymmetries <- function(x) UseMethod("getSymmetries")

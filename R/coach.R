@@ -40,7 +40,11 @@ coach <- R6::R6Class("coach", list(
     episodeStep <- 0
 
     while (TRUE){
-
+       episodeStep <- episodeStep + 1
+       canonicalBoard <- CanonicalForm(self$gam)
+       temp <- as.integer(episodeStep < self$args$tempThreshold)
+       pi <- self$mtcs$getActionProb(canonicalBoard, temp = temp)
+       sym <- self$game$getSymmetries(canonicalBoard, pi)
     }
     #
     # while True:
