@@ -26,4 +26,6 @@ Imports:
     gdata,
     Rcpp,
     keras,
-    R6
+    R6,
+    pracma,
+    Thermimage

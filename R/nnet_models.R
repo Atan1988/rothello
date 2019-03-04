@@ -89,3 +89,12 @@ nnet <- R6::R6Class("nnet", list(
  }
 )
 )
+
+
+#8 symmtries
+mat
+mat_rots <- seq(1, 3, 1) %>% purrr::map(~pracma::rot90(mat, .))
+mat %>% Thermimage::flip.matrix()
+mat %>% Thermimage::mirror.matrix()
+mat %>% t()
+mat %>% pracma::rot90(2) %>% t()
