@@ -37,20 +37,35 @@ CanonicalForm.othello <- function(game) {
 #' @param game othello object
 #' @export
 getSymmetries.othello <- function(game, pi) {
-  # mirror, rotational
-  # assert(len(pi) == self.n**2+1)  # 1 for pass
-  # pi_board = np.reshape(pi[:-1], (self.n, self.n))
-  # l = []
-  #
-  # for i in range(1, 5):
-  #   for j in [True, False]:
-  #   newB = np.rot90(board, i)
-  # newPi = np.rot90(pi_board, i)
-  # if j:
-  #   newB = np.fliplr(newB)
-  # newPi = np.fliplr(newPi)
-  # l += [(newB, list(newPi.ravel()) + [pi[-1]])]
-  # return l
+
+  pi_mat <- matrix(pi, nrow = sqrt(length(pi)))
+  mat <- game$df
+  #8 symmtries.
+  mats <- append(
+    list(mat
+         , mat %>% Thermimage::flip.matrix()
+         , mat %>% Thermimage::mirror.matrix()
+         , mat %>% t()
+         , mat %>% pracma::rot90(2) %>% t()
+    ),
+    seq(1, 3, 1) %>% purrr::map(~pracma::rot90(mat, .))
+  )
+
+  pi_mats <- append(
+    list(pi_mat
+         , pi_mat %>% Thermimage::flip.matrix()
+         , pi_mat %>% Thermimage::mirror.matrix()
+         , pi_mat %>% t()
+         , pi_mat %>% pracma::rot90(2) %>% t()
+    ),
+    seq(1, 3, 1) %>% purrr::map(~pracma::rot90(pi_mat, .))
+  )
+
+  Ss <- mats %>% purrr::map_chr(function(x) ifelse(x == -1, 2, x) %>% paste(collapse = ""))
+  names(mats) <- Ss
+  names(pi_mats) <- Ss
+
+  return(list(mats = mats, pis = pi_mats))
 }
 
 #' @title othello string representation
@@ -113,7 +128,7 @@ getBoardSize.othello <- function(game){
 #' @export
 getNextState.othello <- function(game, move){
 
-  if (move == 0) {
+  if (is.null(move) | length(move) == 0 | move == -1) {
     game$player_to_move <- game$player_to_move * -1
     return(game)
   }

@@ -34,36 +34,37 @@ coach <- R6::R6Class("coach", list(
         #                    pi is the MCTS informed policy vector, v is +1 if
         #                    the player eventually won the game, else -1.
 
-    trainExamples <- list()
-    board <-  self$game$df
+    trainExamples <- list(mat = list(), pis = list(), curPlayer = list())
+    board <-  self$game
     self$curPlayer <- 1
     episodeStep <- 0
 
-    while (TRUE){
+    r <- 0
+    while (r == 0){
        episodeStep <- episodeStep + 1
-       canonicalBoard <- CanonicalForm(self$gam)
+       canonicalBoard <- CanonicalForm(board)
        temp <- as.integer(episodeStep < self$args$tempThreshold)
-       pi <- self$mtcs$getActionProb(canonicalBoard, temp = temp)
-       sym <- self$game$getSymmetries(canonicalBoard, pi)
+
+       pi <- self$mcts$getActionProb(canonicalBoard, temp)
+       sym <- getSymmetries(canonicalBoard, pi)
+
+       sym$curPlayer <- self$curPlayer
+       trainExamples$mat[[length(trainExamples$mat) + 1]] <- sym$mats
+       trainExamples$pis[[length(trainExamples$pis) + 1]] <- sym$pis
+       trainExamples$curPlayer[[length(trainExamples$curPlayer) + 1]] <- sym$curPlayer
+
+       action <- sample(seq(1, length(pi), 1), 1, prob = pi)
+       board <- getNextState(board, action)
+       self$curPlayer <- board$player_to_move
+
+       r <-  getGameEnded(board)
     }
-    #
-    # while True:
-    #   episodeStep += 1
-    # canonicalBoard = self.game.getCanonicalForm(board,self.curPlayer)
-    # temp = int(episodeStep < self.args.tempThreshold)
-    #
-    # pi = self.mcts.getActionProb(canonicalBoard, temp=temp)
-    # sym = self.game.getSymmetries(canonicalBoard, pi)
-    # for b,p in sym:
-    #   trainExamples.append([b, self.curPlayer, p, None])
-    #
-    # action = np.random.choice(len(pi), p=pi)
-    # board, self.curPlayer = self.game.getNextState(board, self.curPlayer, action)
-    #
-    # r = self.game.getGameEnded(board, self.curPlayer)
-    #
-    # if r!=0:
-    #   return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer))) for x in trainExamples]
+
+    trainExamples$curPlayer <- unlist(trainExamples$curPlayer)
+    trainExamples$V <- r * ((-1) ^ (trainExamples$curPlayer != self$curPlayer))
+
+    trainExamples$curPlayer <- NULL
+    return(trainExamples)
   }
 
 )

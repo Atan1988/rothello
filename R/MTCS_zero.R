@@ -37,9 +37,9 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
 
     actions <- 1:getActionSize(self$game)
     counts <- lapply(actions, function(x){
-        s_a <- paste(s, a, sep = "_")
+        s_a <- paste(s, x, sep = "_")
         if (s_a %in% names(self$Nsa)) return(self$Nsa[[s_a]]) else return(0)
-    })
+    }) %>% unlist()
 
     if (temp==0){
       bestA <- which(counts == max(counts))
@@ -73,16 +73,19 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
 
     if (!s %in% names(self$Es)) {
           self$Es[[s]] <- getGameEnded(canonicalBoard)
-          if (self$Es[[s]] != 0) {
+    }
+
+    if (self$Es[[s]] != 0) {
             #     # terminal node
             return(-self$Es[[s]])
-          }
     }
+
 
     if (!s %in% names(self$Ps)) {
       # leaf node
       input_dat <- keras::array_reshape(canonicalBoard$df, dim = c(1, 8, 8, 1))
-      c(self$Ps[[s]], v) %<-% self$nnet$model$predict(input_dat)
+      c(Ps, v) %<-% self$nnet$model$predict(input_dat)
+      self$Ps[[s]] <- Ps
       mvs <-  getValidMove(canonicalBoard)
       valids <- rep(0, getActionSize(canonicalBoard)); valids[mvs] <- 1
       self$Ps[[s]] <-  as.vector(self$Ps[[s]]) * valids      # masking invalid moves
@@ -99,6 +102,7 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
           self$Ps[[s]] <- self$Ps[[s]] + valids
           self$Ps[[s]] <-  self$Ps[[s]] / sum(self$Ps[[s]])
       }
+
       self$Vs[[s]] <- valids
       self$Ns[[s]] <- 0
       return(-v)
@@ -126,6 +130,8 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
     }
 
     a <-  best_act
+    s_a <- paste(s, a, sep = "_")
+    print(s); print(a)
     next_s <-  getNextState(canonicalBoard, a) %>% CanonicalForm()
 
     v <- self$search(next_s)

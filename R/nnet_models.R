@@ -1,6 +1,6 @@
 #' @title nnet class
-#' @name nnet
-nnet <- R6::R6Class("nnet", list(
+#' @name nnetclass
+nnetclass <- R6::R6Class("nnet", list(
  board_x = NULL,
  board_y = NULL,
  model = NULL,
@@ -91,10 +91,4 @@ nnet <- R6::R6Class("nnet", list(
 )
 
 
-#8 symmtries
-mat
-mat_rots <- seq(1, 3, 1) %>% purrr::map(~pracma::rot90(mat, .))
-mat %>% Thermimage::flip.matrix()
-mat %>% Thermimage::mirror.matrix()
-mat %>% t()
-mat %>% pracma::rot90(2) %>% t()
+
