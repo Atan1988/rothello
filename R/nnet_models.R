@@ -67,25 +67,14 @@ nnetclass <- R6::R6Class("nnet", list(
        outputs = c(probs_out, v_out)
      )
 
-     # model_v <- keras::keras_model(
-     #   inputs = c(main_input),
-     #   outputs = c(v_out)
-     # )
-
      model %>% keras::compile(
        optimizer = 'adam',
        loss = 'binary_crossentropy',
        metrics = list('accuracy')
      )
 
-     # model_v %>% keras::compile(
-     #   optimizer = 'adam',
-     #   loss = 'mean_absolute_error',
-     #   metrics = list('mae')
-     # )
-
      self$model <- model
-     #self$model_v <- model_v
+
  }
 )
 )
@@ -104,7 +93,22 @@ nnetclass <- R6::R6Class("nnet", list(
            self$action_size <- getActionSize(game)
          },
         train = function(examples) {
+          # examples: list of examples, each example is of form (board, pi, v)
+           input_boards <- examples$mat
+           target_pis <- examples$pis
+           target_vs <- examples$V
 
+           input_boards <- unlist(input_boards, F); names(input_boards) <- NULL
+           target_pis <- unlist(target_pis, F); names(target_pis) <- NULL
+           target_vs <- target_vs %>% purrr::map(~rep(., 8)) %>% unlist()
+
+           input_boards <- keras::array_reshape(input_boards, dim = c(length(input_boards), 8, 8, 1))
+           target_pis <- target_pis %>% purrr::map(~as.vector(.))
+           target_pis <- keras::array_reshape(target_pis, dim = c(length(target_pis), 64))
+
+           fit1 <- self$nnet$model %>% keras::fit(x = input_boards,
+                               y = list(probs_out = target_pis, v_out = target_vs),
+                               batch_size = args$batch_size, epochs = args$epochs)
         }
         )
 )

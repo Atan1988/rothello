@@ -42,6 +42,7 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
     }) %>% unlist()
 
     if (temp==0){
+      counts <- counts + seq(0.000001, 0.000064, 0.000001)
       bestA <- which(counts == max(counts))
       probs <- rep(0, length(counts))
       probs[bestA] <- 1

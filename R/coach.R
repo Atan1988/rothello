@@ -13,7 +13,7 @@ coach <- R6::R6Class("coach", list(
   initialize = function(game, nnet, args)  {
     self$game <- game
     self$nnet <- nnet
-    self$pnet <- self.nnet.__class__(self.game)
+    self$pnet <- nnet
     #self$pnet <-  # the competitor network
     self$args <- args
     self$mcts <- MTCSzero$new(self$game, self$nnet, self$args)
