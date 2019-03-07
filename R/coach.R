@@ -13,6 +13,7 @@ coach <- R6::R6Class("coach", list(
   initialize = function(game, nnet, args)  {
     self$game <- game
     self$nnet <- nnet
+    self$pnet <- self.nnet.__class__(self.game)
     #self$pnet <-  # the competitor network
     self$args <- args
     self$mcts <- MTCSzero$new(self$game, self$nnet, self$args)
@@ -65,7 +66,61 @@ coach <- R6::R6Class("coach", list(
 
     trainExamples$curPlayer <- NULL
     return(trainExamples)
-  }
+  },
+  learn = function() {
+        # Performs numIters iterations with numEps episodes of self-play in each
+        # iteration. After every iteration, it retrains neural network with
+        # examples in trainExamples (which has a maximium length of maxlenofQueue).
+        # It then pits the new neural network against the old one and accepts it
+        # only if it wins >= updateThreshold fraction of games.
 
-)
+    for (i in 1:(self$args$numIters + 1)) {
+      # bookkeeping
+      print(paste0('------ITER ', i, '------'))
+      # examples of the iteration
+      if (!(self$skipFirstSelfPlay) | i > i){
+        iterationTrainExamples <- list()
+        for (eps in 1:self$args$numEps) {
+          self$mcts = MTCSzero$new(self$game, self$nnet, self$args)
+          iterationTrainExamples[[eps]] <-  self$executeEpisode()
+
+          # bookkeeping + plot progress
+
+
+        }
+        self$trainExamplesHistory <- append(self$trainExamplesHistory, iterationTrainExamples)
+      }
+
+      if (length(self$trainExamplesHistory) > self$args$numItersForTrainExamplesHistory) {
+        cat("len(trainExamplesHistory) =", len(self$trainExamplesHistory),
+            " => remove the oldest trainExamples", "\n")
+        self$trainExamplesHistory <- self$trainExamplesHistory[-1]
+        # backup history to a file
+        # NB! the examples were collected using the model from the previous iteration, so (i-1)
+      }
+      self$saveTrainExamples(i-1)
+
+      # shuffle examlpes before training
+      trainExamples <- trainExamples[sample(1:length(self$trainExamplesHistory),
+                                            length(self$trainExamplesHistory))]
+
+      # training new network, keeping a copy of the old one
+      self$nnet$save_checkpoint(folder=sell$args$checkpoint, filename='temp.pth.tar')
+      self$pnet$load_checkpoint(folder=self$args$checkpoint, filename='temp.pth.tar')
+      pmcts <- MTCSzero$new(self$game, self$pnet, self$args)
+      #
+      self$nnet$train(trainExamples)
+      nmcts <-  MCTS(self$game, self$nnet, self$args)
+      #
+      print('PITTING AGAINST PREVIOUS VERSION')
+    }
+
+    # if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
+    #   print("len(trainExamplesHistory) =", len(self.trainExamplesHistory), " => remove the oldest trainExamples")
+    # self.trainExamplesHistory.pop(0)
+    # # backup history to a file
+    # # NB! the examples were collected using the model from the previous iteration, so (i-1)
+    # self.saveTrainExamples(i-1)
+  }
+ )
 )
