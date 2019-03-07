@@ -106,9 +106,34 @@ nnetclass <- R6::R6Class("nnet", list(
            target_pis <- target_pis %>% purrr::map(~as.vector(.))
            target_pis <- keras::array_reshape(target_pis, dim = c(length(target_pis), 64))
 
-           fit1 <- self$nnet$model %>% keras::fit(x = input_boards,
+           self$nnet$model %>% keras::fit(x = input_boards,
                                y = list(probs_out = target_pis, v_out = target_vs),
                                batch_size = args$batch_size, epochs = args$epochs)
+        },
+        predict = function(board) {
+            #board: np array with board
+            input_dat <- keras::array_reshape(board, dim = c(1, 8, 8, 1))
+            c(Ps, v) %<-% self$nnet$model$predict(input_dat)
+
+            return(list(Ps, v))
+        },
+        save_checkpoint = function(folder='checkpoint', filename='checkpoint.pth.tar'){
+            filepath <- file.path(folder, filename)
+            if (!dir.exists(filepath)) {
+               cat("Checkpoint Directory does not exist! Making directory {}", folder, '\n')
+               dir.create(folder)
+            } else {
+               cat("Checkpoint Directory exists! \n")
+            }
+            self$nnet$model$save_weights(filepath)
+        },
+        load_checkpoint = function(folder='checkpoint', filename='checkpoint.pth.tar'){
+            filepath <- file.path(folder, filename)
+            if (!dir.exists(filepath)) {
+               cat("No model in path ", filepath, '\n')
+               return(NULL)
+            }
+            self$nnet$model$load_weights(filepath)
         }
-        )
+  )
 )
