@@ -101,26 +101,23 @@ coach <- R6::R6Class("coach", list(
       self$saveTrainExamples(i-1)
 
       # shuffle examlpes before training
-      trainExamples <- trainExamples[sample(1:length(self$trainExamplesHistory),
+      trainExamples <- self$trainExamplesHistory[sample(1:length(self$trainExamplesHistory),
                                             length(self$trainExamplesHistory))]
 
       # training new network, keeping a copy of the old one
       self$nnet$save_checkpoint(folder=sell$args$checkpoint, filename='temp.pth.tar')
       self$pnet$load_checkpoint(folder=self$args$checkpoint, filename='temp.pth.tar')
       pmcts <- MTCSzero$new(self$game, self$pnet, self$args)
-      #
+
+
+      ## further training the nnet object and apply MTCS search
       self$nnet$train(trainExamples)
-      nmcts <-  MCTS(self$game, self$nnet, self$args)
+      nmcts <-  MCTSzero(self$game, self$nnet, self$args)
       #
       print('PITTING AGAINST PREVIOUS VERSION')
     }
 
-    # if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
-    #   print("len(trainExamplesHistory) =", len(self.trainExamplesHistory), " => remove the oldest trainExamples")
-    # self.trainExamplesHistory.pop(0)
-    # # backup history to a file
-    # # NB! the examples were collected using the model from the previous iteration, so (i-1)
-    # self.saveTrainExamples(i-1)
+
   }
  )
 )

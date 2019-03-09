@@ -81,7 +81,7 @@ nnetclass <- R6::R6Class("nnet", list(
 
 #' @title nnet wrapper
 #' @name nnetwrapper
-nnetclass <- R6::R6Class("nnet", list(
+nnetwrapper <- R6::R6Class("nnet", list(
         nnet = NULL,
         board_x = NULL,
         board_y = NULL,
@@ -89,7 +89,7 @@ nnetclass <- R6::R6Class("nnet", list(
         initialize = function(game, args){
            self$nnet <- nnetclass$new(game, args)
            size <- getBoardSize(game)
-           self$board_x <- size$board_x; self$board_y <- size$board_y
+           self$board_x <- size['board_x']; self$board_y <- size['board_y']
            self$action_size <- getActionSize(game)
          },
         train = function(examples) {

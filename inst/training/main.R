@@ -19,3 +19,12 @@ mtcs_args <- list(
   cpuct = 1,
   EPS = 1e-8
 )
+
+nnet_args <- list(
+  batch_size = 32
+  , epochs = 10
+  , EPS = 1e-8
+  , num_channels = 32
+  , kernel_size = c(3, 3)
+  , dropout = 0.2
+)
