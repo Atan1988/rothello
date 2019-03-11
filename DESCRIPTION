@@ -28,4 +28,5 @@ Imports:
     keras,
     R6,
     pracma,
-    Thermimage
+    Thermimage,
+    raster

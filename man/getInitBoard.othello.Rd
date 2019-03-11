@@ -4,7 +4,7 @@
 \alias{getInitBoard.othello}
 \title{othello get initial board}
 \usage{
-getInitBoard.othello(game)
+\method{getInitBoard}{othello}(game)
 }
 \arguments{
 \item{game}{othello game object}

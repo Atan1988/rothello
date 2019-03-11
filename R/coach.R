@@ -115,6 +115,17 @@ coach <- R6::R6Class("coach", list(
       nmcts <-  MCTSzero(self$game, self$nnet, self$args)
       #
       print('PITTING AGAINST PREVIOUS VERSION')
+      plyr1 <- function(x) {
+
+      }
+      plyr2 <- function(x) {
+
+      }
+      arena <- Arena(function(x) which.max(pmcts$getActionProb(x, temp=0)),
+                     function(x) which.max(nmcts$getActionProb(x, temp=0)), self$game)
+
+      results <- arena$playGames(self$args$arenaCompare)
+      pwins <- results[1]; nwins <- results[2]; draws <- draws[3]
     }
 
 

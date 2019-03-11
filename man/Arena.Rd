@@ -3,11 +3,10 @@
 \docType{data}
 \name{Arena}
 \alias{Arena}
-\alias{coach}
 \title{arena class}
 \format{An object of class \code{R6ClassGenerator} of length 24.}
 \usage{
-coach
+Arena
 }
 \description{
 An Arena class where any 2 agents can be pit against each other.

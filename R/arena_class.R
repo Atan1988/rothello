@@ -116,10 +116,10 @@ Arena <- R6::R6Class("coach", list(
      eps_time_ct <- eps_time_ct + 1
      end <-  Sys.time()
    }
+
+   return(c(oneWon = oneWon, twoWon = twoWon, draws = draws))
  }
  )
-
- return(c(oneWon = oneWon, twoWon = twoWon, draws = draws))
 )
 
 
