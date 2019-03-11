@@ -126,9 +126,40 @@ coach <- R6::R6Class("coach", list(
 
       results <- arena$playGames(self$args$arenaCompare)
       pwins <- results[1]; nwins <- results[2]; draws <- draws[3]
+
+      cat('NEW/PREV WINS : ', round(nwins / pwins * 100, 1), '% ; DRAWS : ', draws , ' \n')
+      if ((pwins + nwins == 0) | ((nwins)/(pwins+nwins)) < self$args$updateThreshold) {
+        print('REJECTING NEW MODEL')
+        self$nnet$load_checkpoint(folder=self$args$checkpoint, filename='temp.pth.tar')
+      } else {
+        print('ACCEPTING NEW MODEL')
+        self$nnet$save_checkpoint(folder = self$args$checkpoint, filename = self$getCheckpointFile(i))
+        self$nnet$save_checkpoint(folder = self$args$checkpoint, filename = 'best.pth.tar')
+      }
     }
+  },
+  getCheckpointFile = function(iteration) {
+    return(paste0('checkpoint_', iteration, '.pth.tar'))
+  },
+  saveTrainExamples = function(iteration){
+    folder <- self$args$checkpoint
+    if (!dir.exists(folder)) dir.create(folder)
 
+    filename <- file.path(folder, self$getCheckpointFile(iteration), ".RData")
+    saveRDS(self$trainExamplesHistory, filename)
+  },
+  loadTrainExamples = function() {
+    modelFile <-  load_folder_file
+    examplesFile = paste0(modelFile, ".examples")
+    if (!file.exists(examplesFile)){
+      print(examplesFile)
 
+    } else {
+      print("File with trainExamples found. Read it.")
+      self$trainExamplesHistory <- readr::read_rds(examplesFile)
+      # examples based on the model were already collected (loaded)
+      self$skipFirstSelfPlay <-  TRUE
+    }
   }
  )
 )
