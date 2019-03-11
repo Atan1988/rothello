@@ -21,6 +21,17 @@ ini_othello <- function(sz, val = NULL, player = 1) {
   )
 }
 
+#' @title othello get initial board
+#' @name getInitBoard.othello
+#' @param game othello game object
+#' @export
+getInitBoard.othello <- function(game) {
+ sz <-  length(game$df)^0.5
+ game$df <- generate_othello_base_M(sz, NULL)
+ game$player_to_move <- 1
+ return(game)
+}
+
 #' @title get canonical form of the othello class
 #' @name CanonicalForm.othello
 #' @param game othello object
