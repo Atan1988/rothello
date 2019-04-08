@@ -1,7 +1,7 @@
 #' @title arena class
 #' @name Arena
 #' @description An Arena class where any 2 agents can be pit against each other.
-Arena <- R6::R6Class("coach", list(
+Arena <- R6::R6Class("Arena", list(
  player1 = NULL,
  player2 = NULL,
  game = NULL,
@@ -20,7 +20,7 @@ Arena <- R6::R6Class("coach", list(
    self$game = game
    self$display = display
  },
- playGame = function(verbose=False){
+ playGame = function(verbose=F){
    # Executes one episode of a game.
    # Returns:
    #   either
@@ -29,37 +29,52 @@ Arena <- R6::R6Class("coach", list(
    # draw result returned from the game that is neither 1, -1, nor 0.
    #players = [self.player2, None, self.player1]
    players <- list(self$player1, self$player2)
-   curPlayer <-  1
-   self$game <-  getInitBoard(self$game)
-   it <-  0
-   while (getGameEnded(self$game)==0 ) {
-     it <- it + 1
-     if (verbose) {
-       #assert(self.display)
-       print("Turn ", str(it), "Player ", str(curPlayer))
-       self$display(self$game$df)
-     }
 
-     action <-  players[[ifelse(curPlayer == -1, 2, curPlayer)]](getCanonicalForm(self$game))
+   #games <- list()
+   prog_bar <- dplyr::progress_estimated(100)
+   #for (i in 1:100){
+      curPlayer <-  1
+      self$game <-  getInitBoard(self$game)
+      it <-  0
+      while (getGameEnded(self$game)==0) {
+         it <- it + 1
+         if (verbose) {
+            #assert(self.display)
+            cat("Turn ", it, "Player ", self$game$player_to_move, '\n')
+            self$display(self$game$df)
+         }
 
-     valids <- getValidMove(getCanonicalForm(self$game))
+         if (curPlayer == -1) {
+            action <- self$player2(CanonicalForm(self$game))
+         } else {
+            action <- self$player1(CanonicalForm(self$game))
+         }
+         if (is.na(action)) print(self$game)
 
-     if (valids[action] == 0) {
-       print(action)
-     }
+         valids <- getValidMove(CanonicalForm(self$game))
+         # print(valids)
+         # print(action)
 
-     if(valids[action] >0) {
-       self$game <- getNextState(self$game, action)
-     }
-   }
-   if (verbose){
-     print("Game over: Turn ", it, "Result ", getGameEnded(self$game))
-     self$display(self$game$df)
-   }
+         if (!action %in% valids) {
+            #print(action)
+            self$game <- getNextState(self$game, 0)
+         }
+
+         if(action %in% valids) {
+            self$game <- getNextState(self$game, action)
+         }
+      }
+      if (verbose){
+         cat("Game over: Turn ", it, "Result ", getGameEnded(self$game), '\n')
+         self$display(self$game$df)
+      }
+      #games[[length(games) + 1]] <- self$game
+      #prog_bar$tick()$print()
+   #}
 
    return(getGameEnded(self$game))
  },
- playGames = function(num, verbose=False) {
+ playGames = function(num, verbose=F) {
    # Plays num games in which player1 starts num/2 games and player2 starts
    # num/2 games.
    # Returns:
@@ -78,7 +93,8 @@ Arena <- R6::R6Class("coach", list(
    twoWon <- 0
    draws <- 0
 
-   for (i in (1:length(num))){
+   progbar <- dplyr::progress_estimated(2 * num)
+   for (i in (1:num)){
      gameResult <- self$playGame(verbose=verbose)
      if (gameResult ==1) {
        oneWon <- oneWon + 1
@@ -87,21 +103,16 @@ Arena <- R6::R6Class("coach", list(
      } else {
        draws <- draws + 1
      }
-       # bookkeeping + plot progress
-       eps <-  1
-       eps_time <- ((eps_time) * eps_time_ct + (Sys.time() - end)) / (eps_time_ct + 1)
-       eps_time_ct <- eps_time_ct + 1
-       end <-  Sys.time()
-       # bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps+1, maxeps=maxeps, et=eps_time.avg,
-       #                                                                                             total=bar.elapsed_td, eta=bar.eta_td)
-       # bar.next()
+     # bookkeeping + plot progress
+     progbar$tick()$print()
    }
 
    players <- list(self$player1, self$player2)
    self$player1 <- players[[2]]
    self$player2 <- players[[1]]
 
-   for (i in (1:length(num))){
+
+   for (i in (1:num)){
      gameResult <- self$playGame(verbose=verbose)
      if (gameResult == -1) {
        oneWon <- oneWon + 1
@@ -111,10 +122,7 @@ Arena <- R6::R6Class("coach", list(
        draws <- draws + 1
      }
      # bookkeeping + plot progress
-     eps <-  1
-     eps_time <- ((eps_time) * eps_time_ct + (Sys.time() - end)) / (eps_time_ct + 1)
-     eps_time_ct <- eps_time_ct + 1
-     end <-  Sys.time()
+     progbar$tick()$print()
    }
 
    return(c(oneWon = oneWon, twoWon = twoWon, draws = draws))

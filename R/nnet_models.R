@@ -1,6 +1,6 @@
 #' @title nnet class
 #' @name nnetclass
-nnetclass <- R6::R6Class("nnet", list(
+nnetclass <- R6::R6Class("nnetclass", list(
  board_x = NULL,
  board_y = NULL,
  model = NULL,
@@ -55,7 +55,7 @@ nnetclass <- R6::R6Class("nnet", list(
 
      probs_out <- main_out %>%
        #output layer
-       keras::layer_dense(self$action_size, activation = keras::activation_softmax,
+       keras::layer_dense(self$action_size + 1, activation = keras::activation_softmax,
                           name = 'probs_out')
 
      v_out <- main_out %>%
@@ -68,8 +68,8 @@ nnetclass <- R6::R6Class("nnet", list(
      )
 
      model %>% keras::compile(
-       optimizer = 'adam',
-       loss = 'binary_crossentropy',
+       optimizer = keras::optimizer_adam(args$lr),
+       loss = c('categorical_crossentropy','mean_squared_error'),
        metrics = list('accuracy')
      )
 
@@ -81,12 +81,16 @@ nnetclass <- R6::R6Class("nnet", list(
 
 #' @title nnet wrapper
 #' @name nnetwrapper
-nnetwrapper <- R6::R6Class("nnet", list(
+nnetwrapper <- R6::R6Class("nnetwrapper", list(
         nnet = NULL,
         board_x = NULL,
         board_y = NULL,
         action_size = NULL,
+        args = NULL,
+        game = NULL,
         initialize = function(game, args){
+           self$game <- game
+           self$args <- args
            self$nnet <- nnetclass$new(game, args)
            size <- getBoardSize(game)
            self$board_x <- size['board_x']; self$board_y <- size['board_y']
@@ -94,32 +98,33 @@ nnetwrapper <- R6::R6Class("nnet", list(
          },
         train = function(examples) {
           # examples: list of examples, each example is of form (board, pi, v)
-           input_boards <- examples$mat
-           target_pis <- examples$pis
-           target_vs <- examples$V
+           input_boards <- examples %>% purrr::map(~unlist(.$mat, F))
+           target_pis <- examples %>% purrr::map(~unlist(.$pis, F))
+           target_vs <- examples %>% purrr::map(~unlist(.$V, F))
 
            input_boards <- unlist(input_boards, F); names(input_boards) <- NULL
            target_pis <- unlist(target_pis, F); names(target_pis) <- NULL
            target_vs <- target_vs %>% purrr::map(~rep(., 8)) %>% unlist()
 
-           input_boards <- keras::array_reshape(input_boards, dim = c(length(input_boards), 8, 8, 1))
+           input_boards <- keras::array_reshape(input_boards,
+                                dim = c(length(input_boards), self$board_x, self$board_y, 1))
            target_pis <- target_pis %>% purrr::map(~as.vector(.))
-           target_pis <- keras::array_reshape(target_pis, dim = c(length(target_pis), 64))
+           target_pis <- keras::array_reshape(target_pis, dim = c(length(target_pis), self$action_size))
 
            self$nnet$model %>% keras::fit(x = input_boards,
                                y = list(probs_out = target_pis, v_out = target_vs),
-                               batch_size = args$batch_size, epochs = args$epochs)
+                               batch_size = self$args$batch_size, epochs = self$args$epochs)
         },
         predict = function(board) {
             #board: np array with board
-            input_dat <- keras::array_reshape(board, dim = c(1, 8, 8, 1))
+            input_dat <- keras::array_reshape(board, dim = c(1, self$board_x, self$board_y, 1))
             c(Ps, v) %<-% self$nnet$model$predict(input_dat)
 
             return(list(Ps, v))
         },
         save_checkpoint = function(folder='checkpoint', filename='checkpoint.pth.tar'){
             filepath <- file.path(folder, filename)
-            if (!dir.exists(filepath)) {
+            if (!dir.exists(folder)) {
                cat("Checkpoint Directory does not exist! Making directory {}", folder, '\n')
                dir.create(folder)
             } else {
@@ -129,7 +134,7 @@ nnetwrapper <- R6::R6Class("nnet", list(
         },
         load_checkpoint = function(folder='checkpoint', filename='checkpoint.pth.tar'){
             filepath <- file.path(folder, filename)
-            if (!dir.exists(filepath)) {
+            if (!file.exists(filepath)) {
                cat("No model in path ", filepath, '\n')
                return(NULL)
             }

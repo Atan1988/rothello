@@ -11,11 +11,8 @@ ini_othello <- function(sz, val = NULL, player = 1) {
   structure(
     list(
       df = game_board
-      #, moves = move_df[[1]]
-      #, flip_df = move_df[[2]]
       , player_to_move = player
-      #, pass_ct = 0
-      #, terminal = 0
+      , size = sz
     )
     , class = 'othello'
   )
@@ -94,13 +91,18 @@ stringRepresentation.othello <- function(game){
 getGameEnded.othello <- function(game) {
   # return 0 if not ended, 1 if player 1 won, -1 if player 1 lost
   # player = 1
-
+  pass_move <- game$size ^ 2 + 1
   game_pass <- game
   game_pass$player_to_move <- game$player_to_move * -1
 
-  if (length(getValidMove(game)) > 0) return(0)
+  valid_mvs_game <- getValidMove(game)
 
-  if (length(getValidMove(game_pass)) > 0) return(0)
+  # if (length(valid_mvs_game) > 0) return(0)
+  # if (length(valid_mvs_game_pass) > 0) return(0)
+  if (length(valid_mvs_game) > 0 & !(pass_move %in% valid_mvs_game)) return(0)
+
+  valid_mvs_game_pass <- getValidMove(game_pass)
+  if (length(valid_mvs_game_pass) > 0 & !(pass_move %in% valid_mvs_game_pass)) return(0)
 
   # small value for draw
   game_sum <- sum(game$df)
@@ -113,7 +115,65 @@ getGameEnded.othello <- function(game) {
 #' @param game othello object
 #' @export
 getValidMove.othello <- function(game){
-  get_othello_mv(game$df, search_player = game$player_to_move * -1)[[1]]
+  #get_othello_mv(game$df, search_player = game$player_to_move * -1)[[1]]
+
+  zeros <- search_neighbor(game$df, game$player_to_move * -1)
+
+  valid_flips <- sapply(zeros$mvs, get_valid, board = game$df,
+                        zeros = zeros, CurrPlayer = game$player_to_move, size = game$size,
+                        getmove = T,
+                        simplify = F)
+
+  if (length(valid_flips) == 0) { return(game$size ^ 2 + 1)}
+  names(valid_flips) <- zeros$mvs
+  valid_flips[sapply(valid_flips, is.null)] <- NULL
+
+
+  if (length(valid_flips) == 0) {
+    moves <-  game$size ^ 2 + 1
+  } else {
+    moves <- names(valid_flips) %>% as.numeric()
+  }
+  return(moves)
+}
+
+get_valid <- function(mv, board, zeros, CurrPlayer, size, getmove = T) {
+  dir_mat <- dir_df[which(zeros$dir_mat[mv, ] == 1), ]
+
+  if (!getmove) {
+    res <- lapply(1:nrow(dir_mat), function(i) {
+      x <- dir_mat$x[i]; y <- dir_mat$y[i]
+      val_locs <- mv + seq(1, size, 1) * size * x +  seq(1, size, 1) * 1 * y
+      val_locs <- val_locs[val_locs >=1 & val_locs <= (size * size)]
+
+      vals <- board[val_locs];
+      first_oppo_loc <- which(vals == CurrPlayer)
+      if (length(first_oppo_loc) > 0) {
+        first_oppo_loc <- min(first_oppo_loc)
+        if (sum(vals[1:(first_oppo_loc - 1)]) == ((first_oppo_loc - 1 )* CurrPlayer * -1 )) {
+          return(val_locs[1:(first_oppo_loc - 1)])
+        }
+      }
+    })
+    res <- unlist(res)
+  } else {
+    res <- NULL
+    for(i in 1:nrow(dir_mat)) {
+      x <- dir_mat$x[i]; y <- dir_mat$y[i]
+      val_locs <- mv + seq(1, size, 1) * size * x +  seq(1, size, 1) * 1 * y
+      val_locs <- val_locs[val_locs >=1 & val_locs <= (size * size)]
+
+      vals <- board[val_locs];
+      first_oppo_loc <- which(vals == CurrPlayer)
+      if (length(first_oppo_loc) > 0) {
+        first_oppo_loc <- min(first_oppo_loc)
+        if (sum(vals[1:(first_oppo_loc - 1)]) == ((first_oppo_loc - 1 )* CurrPlayer * -1 )) {
+          res <- T; break
+        }
+      }
+    }
+  }
+  return(res)
 }
 
 #' @title  othello get action size
@@ -129,7 +189,7 @@ getActionSize.othello <- function(game){
 #' @param game othello object
 #' @export
 getBoardSize.othello <- function(game){
-  c(board_x = sqrt(length(game$df)), board_y =  sqrt(length(game$df)))
+  c(board_x = game$size, board_y =  game$size)
 }
 
 #' @title  othello make moves using matrix
@@ -138,23 +198,57 @@ getBoardSize.othello <- function(game){
 #' @param move move to make
 #' @export
 getNextState.othello <- function(game, move){
+  zeros <- search_neighbor(game$df, game$player_to_move * -1)
 
-  if (is.null(move) | length(move) == 0 | move == -1) {
+  if (move == -1) print(move)
+  if (move == (game$size ^ 2 + 1)) {
     game$player_to_move <- game$player_to_move * -1
     return(game)
   }
+  flips <- get_valid(move,  board = game$df,
+                        zeros = zeros, CurrPlayer = game$player_to_move, size = game$size,
+                     F)
+  #print(c(move, flips))
 
-  sz <- nrow(game$df)
-  mvs_list <- search_neighbor(game$df, search_player = game$player_to_move * -1)
+  flip_pieces <- function(game, pieces) {
+    game$df[pieces] <- game$player_to_move
+    return(game)
+  }
+  flip_pieces_safely <- purrr::safely(flip_pieces)
 
-  mvs <- mvs_list$mvs
-  dir_mat <- mvs_list$dir_mat
-  #if (length(mvs) == 0) return(list(NULL, NULL))
-  mv_df <- valid_mv_chk(mv = move, df = game$df, sz, dir_mat, search_player = game$player_to_move * -1)
-
-  game$df[c(move, mv_df$flip)] <- game$player_to_move
+  tmp_game <- flip_pieces_safely(game, c(move, flips))
+  if (is.null(tmp_game$result)) {print(game); print(move); print(flips)}
+  game <- tmp_game$result
   game$player_to_move <- game$player_to_move * -1
+
   return(game)
+  if (is.null(move) | length(move) == 0 | move == -1 | move == 0) {
+    game$player_to_move <- game$player_to_move * -1
+    return(game)
+  }
+  #
+  # sz <- nrow(game$df)
+  # mvs_list <- search_neighbor(game$df, search_player = game$player_to_move * -1)
+  #
+  # mvs <- mvs_list$mvs
+  # dir_mat <- mvs_list$dir_mat
+  # #if (length(mvs) == 0) return(list(NULL, NULL))
+  # valid_mv_chk_safe <- purrr::safely(valid_mv_chk)
+  # mv_df <- valid_mv_chk_safe(mv = move, df = game$df, sz, dir_mat,
+  #                            search_player = game$player_to_move * -1)
+  # if (is.null(mv_df$result)) {
+  #   #print(game); print(move);
+  #   saveRDS(game, 'inst/prob_games/prob_game.RData')
+  #   saveRDS(move, 'inst/prob_games/prob_move.RData')
+  #   game$player_to_move <- game$player_to_move * -1
+  #   return(game)
+  # } else {
+  #   mv_df <- mv_df$result
+  # }
+  #
+  # game$df[c(move, mv_df$flip)] <- game$player_to_move
+  # game$player_to_move <- game$player_to_move * -1
+  # return(game)
 }
 
 chk_valid <- function(df, valid_dir, mv_row, mv_col, sz, search_player) {

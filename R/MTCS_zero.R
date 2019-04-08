@@ -35,14 +35,14 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
     }
     s <- stringRepresentation(canonicalBoard)
 
-    actions <- 1:getActionSize(self$game)
+    actions <- 1:(getActionSize(self$game) + 1)
     counts <- lapply(actions, function(x){
         s_a <- paste(s, x, sep = "_")
         if (s_a %in% names(self$Nsa)) return(self$Nsa[[s_a]]) else return(0)
     }) %>% unlist()
 
     if (temp==0){
-      counts <- counts + seq(0.000001, 0.000064, 0.000001)
+      counts <- counts + seq(0.000001, 0.000001 * length(actions), 0.000001)
       bestA <- which(counts == max(counts))
       probs <- rep(0, length(counts))
       probs[bestA] <- 1
@@ -84,11 +84,13 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
 
     if (!s %in% names(self$Ps)) {
       # leaf node
-      input_dat <- keras::array_reshape(canonicalBoard$df, dim = c(1, 8, 8, 1))
-      c(Ps, v) %<-% self$nnet$model$predict(input_dat)
+      dim <- getActionSize(self$game)
+      input_dat <- keras::array_reshape(canonicalBoard$df, dim = c(1, sqrt(dim), sqrt(dim), 1))
+      c(Ps, v) %<-% self$nnet$predict(input_dat)
       self$Ps[[s]] <- Ps
       mvs <-  getValidMove(canonicalBoard)
-      valids <- rep(0, getActionSize(canonicalBoard)); valids[mvs] <- 1
+      valids <- rep(0, getActionSize(canonicalBoard) + 1);
+      if (length(mvs) > 0) valids[mvs] <- 1
       self$Ps[[s]] <-  as.vector(self$Ps[[s]]) * valids      # masking invalid moves
       sum_Ps_s <-  sum(self$Ps[[s]])
 
@@ -99,7 +101,7 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
 
         # NB! All valid moves may be masked if either your NNet architecture is insufficient or you've get overfitting or something else.
         # If you have got dozens or hundreds of these messages you should pay attention to your NNet and/or training process.
-        print("All valid moves were masked, do workaround.")
+        #print("All valid moves were masked, do workaround.")
           self$Ps[[s]] <- self$Ps[[s]] + valids
           self$Ps[[s]] <-  self$Ps[[s]] / sum(self$Ps[[s]])
       }
@@ -114,7 +116,7 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
     best_act <-  -1
 
     # pick the action with the highest upper confidence bound
-    for (a in 1:getActionSize(self$game)) {
+    for (a in 1:(getActionSize(self$game) + 1)) {
       s_a <- paste(s, a, sep = "_")
       if (valids[a] == 1){
         if (s_a %in% names(self$Qsa)){
@@ -132,13 +134,13 @@ MTCSzero <- R6::R6Class("MTCSzero", list(
 
     a <-  best_act
     s_a <- paste(s, a, sep = "_")
-    print(s); print(a)
+    #print(s); print(a)
     next_s <-  getNextState(canonicalBoard, a) %>% CanonicalForm()
 
     v <- self$search(next_s)
 
     if (s_a %in% names(self$Qsa)) {
-      self$Qsa[[s_a]] = (self$Nsa[[s_a]] * self$Qsa[[s_a]] + v)/(self$Nsa[[s_a]] + 1)
+      self$Qsa[[s_a]] <- (self$Nsa[[s_a]] * self$Qsa[[s_a]] + v)/(self$Nsa[[s_a]] + 1)
       self$Nsa[[s_a]] <- self$Nsa[[s_a]] + 1
     } else {
       self$Qsa[[s_a]] <- v

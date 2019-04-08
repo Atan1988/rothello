@@ -5,15 +5,16 @@ coach <- R6::R6Class("coach", list(
     # in Game and NeuralNet. args are specified in main.py.
   game = NULL,
   nnet = NULL,
+  pnet = NULL,
   args = NULL,
   mcts = NULL,
   curPlayer = NULL,
   trainExamplesHistory = NULL,
   skipFirstSelfPlay = NULL,
-  initialize = function(game, nnet, args)  {
+  initialize = function(game, nnet, pnet, args)  {
     self$game <- game
     self$nnet <- nnet
-    self$pnet <- nnet
+    self$pnet <- pnet
     #self$pnet <-  # the competitor network
     self$args <- args
     self$mcts <- MTCSzero$new(self$game, self$nnet, self$args)
@@ -54,7 +55,11 @@ coach <- R6::R6Class("coach", list(
        trainExamples$pis[[length(trainExamples$pis) + 1]] <- sym$pis
        trainExamples$curPlayer[[length(trainExamples$curPlayer) + 1]] <- sym$curPlayer
 
-       action <- sample(seq(1, length(pi), 1), 1, prob = pi)
+       if (is.na(pi) %>% sum() > 0) {
+         print(pi); action <- rep(0, length(action) )
+       } else {
+         action <- sample(seq(1, length(pi), 1), 1, prob = pi)
+       }
        board <- getNextState(board, action)
        self$curPlayer <- board$player_to_move
 
@@ -80,21 +85,24 @@ coach <- R6::R6Class("coach", list(
       # examples of the iteration
       if (!(self$skipFirstSelfPlay) | i > i){
         iterationTrainExamples <- list()
+        prog <- dplyr::progress_estimated(self$args$numEps)
         for (eps in 1:self$args$numEps) {
           self$mcts = MTCSzero$new(self$game, self$nnet, self$args)
           iterationTrainExamples[[eps]] <-  self$executeEpisode()
 
           # bookkeeping + plot progress
-
-
+          prog$tick()$print()
         }
-        self$trainExamplesHistory <- append(self$trainExamplesHistory, iterationTrainExamples)
+        #self$trainExamplesHistory <- append(self$trainExamplesHistory, iterationTrainExamples)
+        self$trainExamplesHistory[[length(self$trainExamplesHistory) + 1]] <- iterationTrainExamples
       }
 
       if (length(self$trainExamplesHistory) > self$args$numItersForTrainExamplesHistory) {
-        cat("len(trainExamplesHistory) =", len(self$trainExamplesHistory),
+        cat("len(trainExamplesHistory) =", length(self$trainExamplesHistory),
             " => remove the oldest trainExamples", "\n")
-        self$trainExamplesHistory <- self$trainExamplesHistory[-1]
+        len_sample <- length(self$trainExamplesHistory)
+        self$trainExamplesHistory <-
+          self$trainExamplesHistory[(len_sample - self$args$numItersForTrainExamplesHistory + 1):len_sample]
         # backup history to a file
         # NB! the examples were collected using the model from the previous iteration, so (i-1)
       }
@@ -105,47 +113,44 @@ coach <- R6::R6Class("coach", list(
                                             length(self$trainExamplesHistory))]
 
       # training new network, keeping a copy of the old one
-      self$nnet$save_checkpoint(folder=sell$args$checkpoint, filename='temp.pth.tar')
-      self$pnet$load_checkpoint(folder=self$args$checkpoint, filename='temp.pth.tar')
+      self$nnet$save_checkpoint(folder=self$args$checkpoint, filename=paste0('temp', '.RData'))
+      self$pnet$load_checkpoint(folder=self$args$checkpoint, filename= paste0('temp', '.RData'))
       pmcts <- MTCSzero$new(self$game, self$pnet, self$args)
 
 
       ## further training the nnet object and apply MTCS search
+      #saveRDS(trainExamples, 'data/trainExamples.RData')
       self$nnet$train(trainExamples)
-      nmcts <-  MCTSzero(self$game, self$nnet, self$args)
+      nmcts <-  MTCSzero$new(self$game, self$nnet, self$args)
       #
       print('PITTING AGAINST PREVIOUS VERSION')
-      plyr1 <- function(x) {
+      arena <- Arena$new(function(x) which.max(pmcts$getActionProb(x, temp=0)),
+                     function(x) which.max(nmcts$getActionProb(x, temp=0)), self$game,
+                     display = print)
 
-      }
-      plyr2 <- function(x) {
+      results <- arena$playGames(self$args$arenaCompare, verbose = F)
+      pwins <- results[1]; nwins <- results[2]; draws <- results[3]
 
-      }
-      arena <- Arena(function(x) which.max(pmcts$getActionProb(x, temp=0)),
-                     function(x) which.max(nmcts$getActionProb(x, temp=0)), self$game)
-
-      results <- arena$playGames(self$args$arenaCompare)
-      pwins <- results[1]; nwins <- results[2]; draws <- draws[3]
-
-      cat('NEW/PREV WINS : ', round(nwins / pwins * 100, 1), '% ; DRAWS : ', draws , ' \n')
+      cat('New WINS: ', nwins, "; Prev WINS: ", pwins, '; Draws: ', draws, '\n' )
+      cat('NEW/PREV WINS : ', round(nwins / (pwins + nwins) * 100, 1), '% ; DRAWS : ', draws , ' \n')
       if ((pwins + nwins == 0) | ((nwins)/(pwins+nwins)) < self$args$updateThreshold) {
         print('REJECTING NEW MODEL')
-        self$nnet$load_checkpoint(folder=self$args$checkpoint, filename='temp.pth.tar')
+        self$nnet$load_checkpoint(folder=self$args$checkpoint, filename='temp.RData')
       } else {
         print('ACCEPTING NEW MODEL')
         self$nnet$save_checkpoint(folder = self$args$checkpoint, filename = self$getCheckpointFile(i))
-        self$nnet$save_checkpoint(folder = self$args$checkpoint, filename = 'best.pth.tar')
+        self$nnet$save_checkpoint(folder = self$args$checkpoint, filename = 'best.RData')
       }
     }
   },
   getCheckpointFile = function(iteration) {
-    return(paste0('checkpoint_', iteration, '.pth.tar'))
+    return(paste0('checkpoint_', iteration, '.RData'))
   },
   saveTrainExamples = function(iteration){
     folder <- self$args$checkpoint
     if (!dir.exists(folder)) dir.create(folder)
 
-    filename <- file.path(folder, self$getCheckpointFile(iteration), ".RData")
+    filename <- file.path(folder, paste0(self$getCheckpointFile(iteration), ".RData"))
     saveRDS(self$trainExamplesHistory, filename)
   },
   loadTrainExamples = function() {
